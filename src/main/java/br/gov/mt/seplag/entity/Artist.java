@@ -1,5 +1,6 @@
 package br.gov.mt.seplag.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +17,7 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Artist {
 
     @Id
@@ -25,11 +27,13 @@ public class Artist {
     @Column(nullable = false, length = 200)
     private String name;
 
-    @Column(name = "is_band")
-    private Boolean isBand;
+    @Column(name = "is_band", nullable = false)
+    @Builder.Default
+    private Boolean isBand = false;
 
     @ManyToMany(mappedBy = "artists", fetch = FetchType.LAZY)
     @Builder.Default
+    @JsonIgnoreProperties("artists")  // Evita loop infinito na serialização JSON
     private Set<Album> albums = new HashSet<>();
 
     @Column(name = "created_at", updatable = false)
