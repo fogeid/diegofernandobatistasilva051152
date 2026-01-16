@@ -7,7 +7,7 @@
 -- Hash BCrypt gerado para a senha "admin123"
 -- Você pode gerar novos hashes em: https://bcrypt-generator.com/
 INSERT INTO users (username, password) VALUES
-    ('admin', '$2a$10$xR4ZrqjDm5sVW5iKp8yIaOqVZJ.gC5qYvJ6rLKzXmHKZU0Kd7MhIy');
+    ('admin', '$2a$10$N9qo8uLOickgx2ZrVzY6j.5bZjqC5RnIvGgYqd4Yh8qG6qKqxF.6i');
 
 -- ========================================
 -- Artistas Conforme Especificação

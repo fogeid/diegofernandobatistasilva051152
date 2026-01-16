@@ -63,16 +63,22 @@ public class AlbumService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public AlbumResponse insert(AlbumRequest request) {
         Set<Artist> artists = loadArtists(request.getArtistIds());
 
         Album album = Album.builder()
                 .title(request.getTitle())
                 .releaseYear(request.getReleaseYear())
-                .artists(artists)
+                .artists(new HashSet<>())
                 .build();
 
-        Album saved = albumRepository.save(album);
+        Album saved = albumRepository.saveAndFlush(album);
+
+        saved.getArtists().addAll(artists);
+
+        saved = albumRepository.saveAndFlush(saved);
+
         return toResponse(saved);
     }
 

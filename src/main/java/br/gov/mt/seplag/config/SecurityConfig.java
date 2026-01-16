@@ -19,9 +19,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/**
- * Configuração de segurança da aplicação
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -39,14 +36,28 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Endpoints públicos
                         .requestMatchers(
-                                "/api/v1/auth/**",           // Login e refresh
-                                "/api/test/**",              // TESTE - REMOVER EM PRODUÇÃO
-                                "/h2-console/**",            // Console H2
-                                "/actuator/**",              // Actuator
-                                "/swagger-ui/**",            // Swagger UI
-                                "/swagger-ui.html",          // Swagger UI
-                                "/v3/api-docs/**",           // OpenAPI docs
-                                "/error"                     // Error page
+                                // Autenticação
+                                "/api/v1/auth/**",
+
+                                // Testes (REMOVER EM PRODUÇÃO)
+                                "/api/test/**",
+
+                                // H2 Console (apenas desenvolvimento)
+                                "/h2-console/**",
+
+                                // Actuator
+                                "/actuator/**",
+                                "/actuator/health/**",
+
+                                // Swagger/OpenAPI
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+
+                                // Error page
+                                "/error"
                         ).permitAll()
 
                         // Todas as outras requisições requerem autenticação

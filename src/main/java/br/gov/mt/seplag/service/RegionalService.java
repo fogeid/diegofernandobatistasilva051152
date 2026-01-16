@@ -2,7 +2,6 @@ package br.gov.mt.seplag.service;
 
 import br.gov.mt.seplag.dto.RegionalResponse;
 import br.gov.mt.seplag.entity.Regional;
-import br.gov.mt.seplag.exception.ResourceNotFoundException;
 import br.gov.mt.seplag.repository.RegionalRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,7 +57,7 @@ public class RegionalService {
 
     public RegionalResponse findById(Integer id) {
         Regional regional = regionalRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Regional não encontrada com ID: " + id));
+                .orElseThrow(() -> new RuntimeException("Regional não encontrada com ID: " + id));
 
         return toResponse(regional);
     }
@@ -75,15 +74,34 @@ public class RegionalService {
                     .timeout(TIMEOUT)
                     .block();
 
-            if (jsonResponse == null) {
+            if (jsonResponse == null || jsonResponse.isEmpty()) {
                 throw new RuntimeException("Resposta vazia da API externa");
             }
 
+            log.debug("Resposta da API: {}", jsonResponse);
+
             JsonNode root = objectMapper.readTree(jsonResponse);
-            JsonNode regionaisNode = root.get("regionais");
+
+            JsonNode regionaisNode = null;
+
+            if (root.has("regionais")) {
+                regionaisNode = root.get("regionais");
+            }
+            else if (root.has("data")) {
+                regionaisNode = root.get("data");
+            }
+            else if (root.isArray()) {
+                regionaisNode = root;
+            }
 
             if (regionaisNode == null || !regionaisNode.isArray()) {
-                throw new RuntimeException("Formato de resposta inválido da API");
+                log.error("Formato de resposta inesperado: {}", jsonResponse);
+                throw new RuntimeException("Formato de resposta inválido da API. Esperado array de regionais.");
+            }
+
+            if (regionaisNode.size() == 0) {
+                log.warn("API retornou array vazio de regionais");
+                return new SyncResult(0, 0, 0);
             }
 
             Set<Integer> idsFromApi = new HashSet<>();
@@ -91,6 +109,11 @@ public class RegionalService {
             int atualizados = 0;
 
             for (JsonNode node : regionaisNode) {
+                if (!node.has("id") || !node.has("nome")) {
+                    log.warn("Regional sem id ou nome, ignorando: {}", node);
+                    continue;
+                }
+
                 Integer id = node.get("id").asInt();
                 String nome = node.get("nome").asText();
 
@@ -123,6 +146,7 @@ public class RegionalService {
                             id, existing.getNome(), nome);
 
                 } else if (!existing.getAtivo()) {
+                    // Estava inativa, reativa
                     existing.setAtivo(true);
                     regionalRepository.save(existing);
                     atualizados++;

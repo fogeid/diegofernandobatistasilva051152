@@ -1,10 +1,7 @@
 package br.gov.mt.seplag.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -16,6 +13,8 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"artists", "covers"})
+@EqualsAndHashCode(exclude = {"artists", "covers"})
 public class Album {
 
     @Id

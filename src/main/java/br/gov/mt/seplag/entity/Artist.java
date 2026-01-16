@@ -2,10 +2,7 @@ package br.gov.mt.seplag.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -17,6 +14,8 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = "albums")
+@EqualsAndHashCode(exclude = "albums")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Artist {
 
