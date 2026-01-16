@@ -3,6 +3,8 @@ package br.gov.mt.seplag.service;
 import br.gov.mt.seplag.dto.AlbumCoverResponse;
 import br.gov.mt.seplag.entity.Album;
 import br.gov.mt.seplag.entity.AlbumCover;
+import br.gov.mt.seplag.exception.BadRequestException;
+import br.gov.mt.seplag.exception.ResourceNotFoundException;
 import br.gov.mt.seplag.repository.AlbumCoverRepository;
 import br.gov.mt.seplag.repository.AlbumRepository;
 import io.minio.GetPresignedObjectUrlArgs;
@@ -46,7 +48,7 @@ public class AlbumCoverService {
 
     public AlbumCoverResponse findById(Long id) {
         AlbumCover cover = albumCoverRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Capa não encontrada com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Capa não encontrada com ID: " + id));
 
         return toResponse(cover);
     }
@@ -54,7 +56,7 @@ public class AlbumCoverService {
     @Transactional
     public AlbumCoverResponse uploadCover(Long albumId, MultipartFile file) {
         Album album = albumRepository.findById(albumId)
-                .orElseThrow(() -> new RuntimeException("Álbum não encontrado com ID: " + albumId));
+                .orElseThrow(() -> new ResourceNotFoundException("Álbum não encontrado com ID: " + albumId));
 
         validateImageFile(file);
 
@@ -96,7 +98,7 @@ public class AlbumCoverService {
     @Transactional
     public void delete(Long id) {
         AlbumCover cover = albumCoverRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Capa não encontrada com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Capa não encontrada com ID: " + id));
 
         try {
             minioClient.removeObject(
@@ -124,21 +126,21 @@ public class AlbumCoverService {
 
     private void validateImageFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new RuntimeException("Arquivo não pode ser vazio");
+            throw new BadRequestException("Arquivo não pode ser vazio");
         }
 
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            throw new RuntimeException("Arquivo deve ser uma imagem");
+            throw new BadRequestException("Arquivo deve ser uma imagem");
         }
 
         String filename = file.getOriginalFilename();
         if (filename == null || !filename.matches(".*\\.(jpg|jpeg|png|gif|webp)$")) {
-            throw new RuntimeException("Formato de imagem não suportado. Use: jpg, jpeg, png, gif, webp");
+            throw new BadRequestException("Formato de imagem não suportado. Use: jpg, jpeg, png, gif, webp");
         }
 
         if (file.getSize() > 10 * 1024 * 1024) {
-            throw new RuntimeException("Imagem muito grande. Máximo: 10MB");
+            throw new BadRequestException("Imagem muito grande. Máximo: 10MB");
         }
     }
 

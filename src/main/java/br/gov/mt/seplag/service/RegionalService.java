@@ -2,6 +2,7 @@ package br.gov.mt.seplag.service;
 
 import br.gov.mt.seplag.dto.RegionalResponse;
 import br.gov.mt.seplag.entity.Regional;
+import br.gov.mt.seplag.exception.ResourceNotFoundException;
 import br.gov.mt.seplag.repository.RegionalRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,7 +58,7 @@ public class RegionalService {
 
     public RegionalResponse findById(Integer id) {
         Regional regional = regionalRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Regional não encontrada com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Regional não encontrada com ID: " + id));
 
         return toResponse(regional);
     }

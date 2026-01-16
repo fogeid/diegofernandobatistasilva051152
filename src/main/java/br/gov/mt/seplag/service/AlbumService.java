@@ -3,6 +3,7 @@ package br.gov.mt.seplag.service;
 import br.gov.mt.seplag.dto.*;
 import br.gov.mt.seplag.entity.Album;
 import br.gov.mt.seplag.entity.Artist;
+import br.gov.mt.seplag.exception.ResourceNotFoundException;
 import br.gov.mt.seplag.repository.AlbumRepository;
 import br.gov.mt.seplag.repository.ArtistRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +44,7 @@ public class AlbumService {
 
     public AlbumResponse findById(Long id) {
         Album album = albumRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Álbum não encontrado com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Álbum não encontrado com ID: " + id));
 
         return toResponse(album);
     }
@@ -78,7 +79,7 @@ public class AlbumService {
     @Transactional
     public AlbumResponse update(Long id, AlbumRequest request) {
         Album album = albumRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Álbum não encontrado com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Álbum não encontrado com ID: " + id));
 
         album.setTitle(request.getTitle());
         album.setReleaseYear(request.getReleaseYear());
@@ -93,7 +94,7 @@ public class AlbumService {
 
     public void delete(Long id) {
         if (!albumRepository.existsById(id)) {
-            throw new RuntimeException("Álbum não encontrado com ID: " + id);
+            throw new ResourceNotFoundException("Álbum não encontrado com ID: " + id);
         }
 
         albumRepository.deleteById(id);
@@ -104,7 +105,7 @@ public class AlbumService {
 
         for (Long artistId : artistIds) {
             Artist artist = artistRepository.findById(artistId)
-                    .orElseThrow(() -> new RuntimeException("Artista não encontrado com ID: " + artistId));
+                    .orElseThrow(() -> new ResourceNotFoundException("Artista não encontrado com ID: " + artistId));
             artists.add(artist);
         }
 

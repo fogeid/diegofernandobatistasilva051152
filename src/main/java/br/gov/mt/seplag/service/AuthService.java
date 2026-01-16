@@ -4,6 +4,8 @@ import br.gov.mt.seplag.dto.LoginRequest;
 import br.gov.mt.seplag.dto.LoginResponse;
 import br.gov.mt.seplag.dto.RefreshTokenRequest;
 import br.gov.mt.seplag.entity.User;
+import br.gov.mt.seplag.exception.BadRequestException;
+import br.gov.mt.seplag.exception.UnauthorizedException;
 import br.gov.mt.seplag.repository.UserRepository;
 import br.gov.mt.seplag.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -57,7 +59,7 @@ public class AuthService {
 
         // 3. Valida o refresh token
         if (!jwtService.validateToken(request.getRefreshToken(), user)) {
-            throw new RuntimeException("Refresh token inválido ou expirado");
+            throw new UnauthorizedException("Refresh token inválido ou expirado");
         }
 
         // 4. Gera novo access token
@@ -74,7 +76,7 @@ public class AuthService {
     public User registerUser(String username, String password) {
         // Verifica se username já existe
         if (userRepository.existsByUsername(username)) {
-            throw new IllegalArgumentException("Username já existe");
+            throw new BadRequestException("Username já existe");
         }
 
         // Cria novo usuário com senha criptografada

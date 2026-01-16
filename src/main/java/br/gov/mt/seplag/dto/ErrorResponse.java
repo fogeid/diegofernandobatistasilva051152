@@ -27,14 +27,3 @@ public class ErrorResponse {
 
     private String path;
 }
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-class ValidationError {
-
-    private String field;
-
-    private String message;
-}

@@ -3,6 +3,7 @@ package br.gov.mt.seplag.service;
 import br.gov.mt.seplag.dto.ArtistRequest;
 import br.gov.mt.seplag.dto.ArtistResponse;
 import br.gov.mt.seplag.entity.Artist;
+import br.gov.mt.seplag.exception.ResourceNotFoundException;
 import br.gov.mt.seplag.repository.ArtistRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,7 @@ public class ArtistService {
 
     public ArtistResponse findById(Long id) {
         Artist artist = artistRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Artista não encontrado com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Artista não encontrado com ID: " + id));
         return toResponse(artist);
     }
 
@@ -66,7 +67,7 @@ public class ArtistService {
     @Transactional
     public ArtistResponse update(Long id, ArtistRequest request) {
         Artist artist = artistRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Artista não encontrado com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Artista não encontrado com ID: " + id));
 
         artist.setName(request.getName());
         if (request.getIsBand() != null) {
@@ -80,7 +81,7 @@ public class ArtistService {
     @Transactional
     public void delete(Long id) {
         if (!artistRepository.existsById(id)) {
-            throw new RuntimeException("Artista não encontrado com ID: " + id);
+            throw new ResourceNotFoundException("Artista não encontrado com ID: " + id);
         }
 
         artistRepository.deleteById(id);
