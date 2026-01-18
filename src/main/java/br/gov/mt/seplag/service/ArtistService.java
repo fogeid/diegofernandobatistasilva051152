@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 public class ArtistService {
 
     private final ArtistRepository artistRepository;
+    private final NotificationService notificationService;
 
     public List<ArtistResponse> findAll() {
         return artistRepository.findAll()
@@ -54,37 +55,45 @@ public class ArtistService {
     }
 
     @Transactional
-    public ArtistResponse insert(ArtistRequest request) {
+    public ArtistResponse insert(ArtistRequest request, String username) {
+
         Artist artist = Artist.builder()
                 .name(request.getName())
-                .isBand(request.getIsBand() != null ? request.getIsBand() : false)
+                .isBand(Boolean.TRUE.equals(request.getIsBand()))
                 .build();
 
         Artist saved = artistRepository.save(artist);
+
+        notificationService.notifyArtistCreated(
+                saved.getId(),
+                saved.getName(),
+                username
+        );
+
         return toResponse(saved);
     }
 
     @Transactional
     public ArtistResponse update(Long id, ArtistRequest request) {
+
         Artist artist = artistRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artista não encontrado com ID: " + id));
 
         artist.setName(request.getName());
-        if (request.getIsBand() != null) {
-            artist.setIsBand(request.getIsBand());
-        }
+        artist.setIsBand(Boolean.TRUE.equals(request.getIsBand()));
 
         Artist updated = artistRepository.save(artist);
+
         return toResponse(updated);
     }
 
     @Transactional
     public void delete(Long id) {
-        if (!artistRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Artista não encontrado com ID: " + id);
-        }
 
-        artistRepository.deleteById(id);
+        Artist artist = artistRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Artista não encontrado com ID: " + id));
+
+        artistRepository.delete(artist);
     }
 
     private ArtistResponse toResponse(Artist artist) {

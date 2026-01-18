@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -60,8 +61,8 @@ public class ArtistController {
 
     @PostMapping
     @Operation(summary = "Criar artista", description = "Cadastra um novo artista ou banda")
-    public ResponseEntity<ArtistResponse> create(@Valid @RequestBody ArtistRequest request) {
-        ArtistResponse artist = artistService.insert(request);
+    public ResponseEntity<ArtistResponse> create(@Valid @RequestBody ArtistRequest request, Authentication authentication) {
+        ArtistResponse artist = artistService.insert(request, authentication.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(artist);
     }
 

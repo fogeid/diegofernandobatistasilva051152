@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -98,8 +99,8 @@ public class AlbumController {
 
     @PostMapping
     @Operation(summary = "Criar álbum", description = "Cadastra um novo álbum com seus artistas")
-    public ResponseEntity<AlbumResponse> create(@Valid @RequestBody AlbumRequest request) {
-        AlbumResponse album = albumService.insert(request);
+    public ResponseEntity<AlbumResponse> create(@Valid @RequestBody AlbumRequest request, Authentication authentication) {
+        AlbumResponse album = albumService.insert(request, authentication.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(album);
     }
 
@@ -107,15 +108,16 @@ public class AlbumController {
     @Operation(summary = "Atualizar álbum", description = "Atualiza dados de um álbum existente")
     public ResponseEntity<AlbumResponse> update(
             @PathVariable Long id,
-            @Valid @RequestBody AlbumRequest request) {
-        AlbumResponse album = albumService.update(id, request);
+            @Valid @RequestBody AlbumRequest request,
+            Authentication authentication) {
+        AlbumResponse album = albumService.update(id, request, authentication.getName());
         return ResponseEntity.ok(album);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Deletar álbum", description = "Remove um álbum do sistema")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        albumService.delete(id);
+    public ResponseEntity<Void> delete(@PathVariable Long id, Authentication authentication) {
+        albumService.delete(id, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 }

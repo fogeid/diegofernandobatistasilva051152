@@ -31,13 +31,23 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> {})
                 .csrf(AbstractHttpConfigurer::disable)
-
                 .authorizeHttpRequests(auth -> auth
                         // Endpoints públicos
                         .requestMatchers(
                                 // Autenticação
                                 "/api/v1/auth/**",
+
+                                //WebSocket
+                                "/ws/**",
+                                "/ws",
+                                "/ws/info",
+
+                                // Static resources
+                                "/websocket-test.html",
+                                "/static/**",
+                                "/*.html",
 
                                 // Testes (REMOVER EM PRODUÇÃO)
                                 "/api/test/**",

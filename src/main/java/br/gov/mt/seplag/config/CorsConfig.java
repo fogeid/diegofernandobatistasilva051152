@@ -32,8 +32,13 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        configuration.setAllowedOrigins(origins);
+        if ("*".equals(allowedOrigins)) {
+            configuration.setAllowedOriginPatterns(List.of("*"));
+        } else {
+            List<String> origins = Arrays.asList(allowedOrigins.split(","));
+            configuration.setAllowedOrigins(origins);
+            configuration.setAllowedOriginPatterns(List.of("*"));
+        }
 
         List<String> methods = Arrays.asList(allowedMethods.split(","));
         configuration.setAllowedMethods(methods);
@@ -46,7 +51,6 @@ public class CorsConfig {
         }
 
         configuration.setAllowCredentials(allowCredentials);
-
         configuration.setMaxAge(maxAge);
 
         configuration.setExposedHeaders(Arrays.asList(

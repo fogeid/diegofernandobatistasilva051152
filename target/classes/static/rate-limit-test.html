@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Limit Test - Seplag API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            color: white;
+        }
+        
+        .start { background: #4CAF50; }
+        .stop { background: #F44336; }
+        .reset { background: #2196F3; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .success { color: #4CAF50; }
+        .limited { color: #F44336; }
+        .total { color: #2196F3; }
+        
+        #log {
+            max-height: 400px;
+            overflow-y: auto;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            padding: 5px;
+            margin: 2px 0;
+            border-left: 3px solid;
+        }
+        
+        .log-success { border-color: #4CAF50; background: #e8f5e9; }
+        .log-limited { border-color: #F44336; background: #ffebee; }
+        .log-error { border-color: #FF9800; background: #fff3e0; }
+        
+        input {
+            padding: 10px;
+            width: 300px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>⚡ Rate Limit Tester</h1>
+    
+    <div class="container">
+        <h3>Configuração</h3>
+        <label>
+            Token JWT (deixe vazio para testar sem autenticação):
+            <input type="text" id="token" placeholder="Cole o token aqui...">
+        </label>
+        <br>
+        <label>
+            Número de requisições:
+            <input type="number" id="numRequests" value="105" min="1" max="500">
+        </label>
+        <br>
+        <label>
+            Intervalo (ms):
+            <input type="number" id="interval" value="50" min="10" max="1000">
+        </label>
+    </div>
+    
+    <div class="container">
+        <button class="start" onclick="startTest()">🚀 Iniciar Teste</button>
+        <button class="stop" onclick="stopTest()">⏹️ Parar</button>
+        <button class="reset" onclick="resetTest()">🔄 Resetar</button>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-label">✅ Sucesso</div>
+            <div class="stat-value success" id="successCount">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">🚫 Bloqueadas</div>
+            <div class="stat-value limited" id="limitedCount">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">📊 Total</div>
+            <div class="stat-value total" id="totalCount">0</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h3>Log de Requisições</h3>
+        <div id="log"></div>
+    </div>
+    
+    <script>
+        let isRunning = false;
+        let successCount = 0;
+        let limitedCount = 0;
+        let totalCount = 0;
+        let intervalId = null;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry log-' + type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        }
+        
+        function updateStats() {
+            document.getElementById('successCount').textContent = successCount;
+            document.getElementById('limitedCount').textContent = limitedCount;
+            document.getElementById('totalCount').textContent = totalCount;
+        }
+        
+        async function makeRequest() {
+            const token = document.getElementById('token').value.trim();
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/v1/artists', {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                totalCount++;
+                
+                const remaining = response.headers.get('X-Rate-Limit-Remaining');
+                
+                if (response.status === 200) {
+                    successCount++;
+                    log(`✅ Request #${totalCount}: OK (Remaining: ${remaining || 'N/A'})`, 'success');
+                } else if (response.status === 429) {
+                    limitedCount++;
+                    const data = await response.json();
+                    log(`🚫 Request #${totalCount}: RATE LIMITED - ${data.message}`, 'limited');
+                } else if (response.status === 401) {
+                    log(`🔒 Request #${totalCount}: Não autorizado (token inválido)`, 'error');
+                    stopTest();
+                } else {
+                    log(`❌ Request #${totalCount}: HTTP ${response.status}`, 'error');
+                }
+                
+                updateStats();
+                
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+            }
+        }
+        
+        function startTest() {
+            if (isRunning) {
+                log('⚠️ Teste já está rodando!', 'error');
+                return;
+            }
+            
+            isRunning = true;
+            const numRequests = parseInt(document.getElementById('numRequests').value);
+            const interval = parseInt(document.getElementById('interval').value);
+            
+            log(`🚀 Iniciando teste: ${numRequests} requisições com intervalo de ${interval}ms`, 'info');
+            
+            let count = 0;
+            intervalId = setInterval(() => {
+                if (count >= numRequests || !isRunning) {
+                    stopTest();
+                    return;
+                }
+                
+                makeRequest();
+                count++;
+            }, interval);
+        }
+        
+        function stopTest() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+            isRunning = false;
+            log('⏹️ Teste parado', 'info');
+        }
+        
+        function resetTest() {
+            stopTest();
+            successCount = 0;
+            limitedCount = 0;
+            totalCount = 0;
+            updateStats();
+            document.getElementById('log').innerHTML = '';
+            log('🔄 Estatísticas resetadas', 'info');
+        }
+    </script>
+</body>
+</html>

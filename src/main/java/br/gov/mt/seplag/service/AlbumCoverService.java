@@ -31,6 +31,7 @@ public class AlbumCoverService {
 
     private final AlbumCoverRepository albumCoverRepository;
     private final AlbumRepository albumRepository;
+    private final NotificationService notificationService;
     private final MinioClient minioClient;
 
     @Value("${minio.bucket-name}")
@@ -54,18 +55,17 @@ public class AlbumCoverService {
     }
 
     @Transactional
-    public AlbumCoverResponse uploadCover(Long albumId, MultipartFile file) {
+    public AlbumCoverResponse uploadCover(Long albumId, MultipartFile file, String username) {
+
         Album album = albumRepository.findById(albumId)
                 .orElseThrow(() -> new ResourceNotFoundException("Álbum não encontrado com ID: " + albumId));
 
         validateImageFile(file);
 
-        String originalFilename = file.getOriginalFilename();
-        String extension = getFileExtension(originalFilename);
+        String extension = getFileExtension(file.getOriginalFilename());
         String minioKey = generateMinioKey(albumId, extension);
 
-        try {
-            InputStream inputStream = file.getInputStream();
+        try (InputStream inputStream = file.getInputStream()) {
 
             minioClient.putObject(
                     PutObjectArgs.builder()
@@ -76,22 +76,26 @@ public class AlbumCoverService {
                             .build()
             );
 
-            inputStream.close();
+            AlbumCover saved = albumCoverRepository.save(
+                    AlbumCover.builder()
+                            .album(album)
+                            .fileName(file.getOriginalFilename())
+                            .minioKey(minioKey)
+                            .contentType(file.getContentType())
+                            .fileSize(file.getSize())
+                            .build()
+            );
 
-            AlbumCover cover = AlbumCover.builder()
-                    .album(album)
-                    .fileName(originalFilename)
-                    .minioKey(minioKey)
-                    .contentType(file.getContentType())
-                    .fileSize(file.getSize())
-                    .build();
-
-            AlbumCover saved = albumCoverRepository.save(cover);
+            notificationService.notifyCoverUploaded(
+                    album.getId(),
+                    album.getTitle(),
+                    username
+            );
 
             return toResponse(saved);
 
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao fazer upload da imagem: " + e.getMessage(), e);
+            throw new RuntimeException("Erro ao fazer upload da imagem", e);
         }
     }
 

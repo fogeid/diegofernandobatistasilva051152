@@ -7,6 +7,7 @@ import br.gov.mt.seplag.exception.ResourceNotFoundException;
 import br.gov.mt.seplag.repository.AlbumRepository;
 import br.gov.mt.seplag.repository.ArtistRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,10 +21,12 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class AlbumService {
 
     private final AlbumRepository albumRepository;
     private final ArtistRepository artistRepository;
+    private final NotificationService notificationService;
 
     public List<AlbumResponse> findAll() {
         return albumRepository.findAll()
@@ -64,7 +67,7 @@ public class AlbumService {
     }
 
     @Transactional
-    public AlbumResponse insert(AlbumRequest request) {
+    public AlbumResponse insert(AlbumRequest request, String username) {
         Set<Artist> artists = loadArtists(request.getArtistIds());
 
         Album album = Album.builder()
@@ -74,36 +77,51 @@ public class AlbumService {
                 .build();
 
         Album saved = albumRepository.saveAndFlush(album);
-
         saved.getArtists().addAll(artists);
-
         saved = albumRepository.saveAndFlush(saved);
 
+        notificationService.notifyAlbumCreated(
+                saved.getId(),
+                saved.getTitle(),
+                username
+        );
+
+        log.info("Álbum criado e notificado: {}", saved.getId());
         return toResponse(saved);
     }
 
     @Transactional
-    public AlbumResponse update(Long id, AlbumRequest request) {
+    public AlbumResponse update(Long id, AlbumRequest request, String username) {
         Album album = albumRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Álbum não encontrado com ID: " + id));
 
         album.setTitle(request.getTitle());
         album.setReleaseYear(request.getReleaseYear());
-
-        Set<Artist> artists = loadArtists(request.getArtistIds());
-        album.setArtists(artists);
+        album.setArtists(loadArtists(request.getArtistIds()));
 
         Album updated = albumRepository.save(album);
+
+        notificationService.notifyAlbumUpdated(
+                updated.getId(),
+                updated.getTitle(),
+                username
+        );
 
         return toResponse(updated);
     }
 
-    public void delete(Long id) {
-        if (!albumRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Álbum não encontrado com ID: " + id);
-        }
+    @Transactional
+    public void delete(Long id, String username) {
+        Album album = albumRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Álbum não encontrado com ID: " + id));
 
-        albumRepository.deleteById(id);
+        albumRepository.delete(album);
+
+        notificationService.notifyAlbumDeleted(
+                album.getId(),
+                album.getTitle(),
+                username
+        );
     }
 
     private Set<Artist> loadArtists(Set<Long> artistIds) {
