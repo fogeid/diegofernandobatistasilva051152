@@ -1,42 +1,33 @@
--- V1__create_initial_tables.sql
--- Migration inicial: Cria todas as tabelas do sistema (H2 Database)
+-- V1__create_initial_schema.sql
+-- Migration para PostgreSQL com BIGSERIAL
 
--- ========================================
--- Tabela de Usuários (Autenticação)
--- ========================================
+-- Tabela de usuários
 CREATE TABLE users (
-                       id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                       username VARCHAR(50) UNIQUE NOT NULL,
+                       id BIGSERIAL PRIMARY KEY,
+                       username VARCHAR(50) NOT NULL UNIQUE,
                        password VARCHAR(255) NOT NULL,
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ========================================
--- Tabela de Artistas
--- ========================================
+-- Tabela de artistas
 CREATE TABLE artists (
-                         id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                         id BIGSERIAL PRIMARY KEY,
                          name VARCHAR(200) NOT NULL,
-                         is_band BOOLEAN DEFAULT FALSE,
+                         is_band BOOLEAN NOT NULL DEFAULT FALSE,
                          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ========================================
--- Tabela de Álbuns
--- ========================================
+-- Tabela de álbuns
 CREATE TABLE albums (
-                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        id BIGSERIAL PRIMARY KEY,
                         title VARCHAR(200) NOT NULL,
                         release_year INTEGER,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ========================================
--- Tabela de Relacionamento N:N
--- Artist <-> Album
--- ========================================
+-- Tabela de relacionamento (muitos para muitos)
 CREATE TABLE artist_albums (
                                artist_id BIGINT NOT NULL,
                                album_id BIGINT NOT NULL,
@@ -45,47 +36,32 @@ CREATE TABLE artist_albums (
                                FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
 );
 
--- ========================================
--- Tabela de Capas de Álbuns
--- ========================================
+-- Tabela de capas de álbuns
 CREATE TABLE album_covers (
-                              id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                              id BIGSERIAL PRIMARY KEY,
                               album_id BIGINT NOT NULL,
                               file_name VARCHAR(255) NOT NULL,
+                              content_type VARCHAR(100) NOT NULL,
+                              file_size BIGINT NOT NULL,
                               minio_key VARCHAR(500) NOT NULL,
-                              content_type VARCHAR(100),
-                              file_size BIGINT,
                               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                               FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
 );
 
--- ========================================
--- Tabela de Regionais
--- ========================================
+-- Tabela de regionais
 CREATE TABLE regionais (
                            id INTEGER PRIMARY KEY,
                            nome VARCHAR(200) NOT NULL,
-                           ativo BOOLEAN DEFAULT TRUE,
+                           ativo BOOLEAN NOT NULL DEFAULT TRUE,
                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ========================================
--- Índices para Melhor Performance
--- ========================================
-
--- Busca por nome de artista
+-- Índices para performance
 CREATE INDEX idx_artists_name ON artists(name);
-
--- Busca por título de álbum
 CREATE INDEX idx_albums_title ON albums(title);
-
--- Joins na tabela N:N
-CREATE INDEX idx_artist_albums_artist_id ON artist_albums(artist_id);
-CREATE INDEX idx_artist_albums_album_id ON artist_albums(album_id);
-
--- Busca de capas por álbum
-CREATE INDEX idx_album_covers_album_id ON album_covers(album_id);
-
--- Filtro de regionais ativas
+CREATE INDEX idx_albums_year ON albums(release_year);
+CREATE INDEX idx_artist_albums_artist ON artist_albums(artist_id);
+CREATE INDEX idx_artist_albums_album ON artist_albums(album_id);
+CREATE INDEX idx_album_covers_album ON album_covers(album_id);
 CREATE INDEX idx_regionais_ativo ON regionais(ativo);
