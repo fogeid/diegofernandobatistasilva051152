@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
-        // precisa ter tamanho suficiente p/ HS256 (>= 32 bytes)
         "jwt.secret=test-secret-key-test-secret-key-test-secret-key-256bits!!",
         "jwt.expiration=300000",          // 5 min
         "jwt.refresh-expiration=86400000" // 24h
@@ -34,7 +33,7 @@ class JwtServiceTest {
     @BeforeEach
     void setUp() {
         userDetails = User.withUsername("testuser")
-                .password("x")   // não é usado pelo JwtService
+                .password("x")
                 .roles("USER")
                 .build();
     }
@@ -117,10 +116,6 @@ class JwtServiceTest {
     @Test
     @DisplayName("Deve lançar ExpiredJwtException para token expirado")
     void shouldThrowExpiredJwtExceptionForExpiredToken() {
-        // Como seu JwtService não expõe setter pra expiração,
-        // este teste pode ser feito criando manualmente um token expirado.
-        // Aqui vai uma forma simples: gerar um token e esperar ele expirar não é legal.
-        // Então, mantemos só a verificação de que token inválido/expirado dispara exceção.
         assertThatThrownBy(() -> jwtService.extractUsername("expired.token.here"))
                 .isInstanceOf(Exception.class);
     }

@@ -28,18 +28,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class AuthIntegrationTest {
 
-    @Autowired private MockMvc mockMvc;
-    @Autowired private ObjectMapper objectMapper;
-    @Autowired private UserRepository userRepository;
-    @Autowired private RefreshTokenRepository refreshTokenRepository;
-    @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     private static final String USERNAME = "testuser";
     private static final String PASSWORD = "password123";
 
     @BeforeEach
     void setup() {
-        // IMPORTANTE: apagar dependentes antes para não quebrar FK
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -108,10 +116,6 @@ class AuthIntegrationTest {
                 .andExpect(status().isNoContent());
     }
 
-    /**
-     * Evita gerar dois JWTs "iguais" no mesmo segundo (problema comum quando o iat/exp tem resolução em segundos).
-     * Isso estava causando violação de UNIQUE no token_hash durante o rotation.
-     */
     private static void waitNextSecond() {
         try {
             Thread.sleep(1100);
@@ -153,7 +157,6 @@ class AuthIntegrationTest {
         String refresh1 = login.get("refreshToken").asText();
         String access1 = login.get("accessToken").asText();
 
-        // 🔧 importante para evitar refresh "igual" (mesmo segundo) e quebrar UNIQUE(token_hash)
         waitNextSecond();
 
         JsonNode refreshed = doRefreshExpectOk(refresh1);
@@ -163,11 +166,9 @@ class AuthIntegrationTest {
         assertThat(refresh2).isNotBlank();
         assertThat(access2).isNotBlank();
 
-        // Rotation mesmo:
         assertThat(refresh2).isNotEqualTo(refresh1);
         assertThat(access2).isNotEqualTo(access1);
 
-        // tentar usar o refresh antigo (revogado) deve falhar
         doRefreshExpectUnauthorized(refresh1);
     }
 
@@ -179,7 +180,6 @@ class AuthIntegrationTest {
 
         doLogout(refresh);
 
-        // refresh token revogado não pode mais ser usado
         doRefreshExpectUnauthorized(refresh);
     }
 

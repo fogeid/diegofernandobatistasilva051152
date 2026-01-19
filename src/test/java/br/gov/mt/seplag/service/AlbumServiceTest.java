@@ -55,7 +55,6 @@ class AlbumServiceTest {
                 .albums(new HashSet<>())
                 .build();
 
-        // Usar List para covers (não Set)
         album = Album.builder()
                 .id(1L)
                 .title("Test Album")

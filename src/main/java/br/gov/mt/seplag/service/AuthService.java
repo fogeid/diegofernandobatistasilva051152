@@ -40,12 +40,6 @@ public class AuthService {
     @Value("${jwt.refresh-expiration}")
     private Long refreshExpirationMs;
 
-    /**
-     * Login:
-     * - autentica username/senha
-     * - gera access + refresh
-     * - salva refreshToken em formato hash (multi-device)
-     */
     @Transactional
     public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(
@@ -72,31 +66,19 @@ public class AuthService {
 
     }
 
-    /**
-     * Refresh token (ROTATION):
-     * - valida assinatura/expiração do refresh token JWT
-     * - confere se ele existe no banco (hash) e não está revogado/expirado
-     * - revoga o refresh antigo
-     * - gera novo access + novo refresh
-     * - salva o novo refresh (hash)
-     */
     @Transactional
     public LoginResponse refreshToken(RefreshTokenRequest request) {
         final String oldRefreshToken = request.getRefreshToken();
 
-        // 1) Extrai username do refresh token
         final String username = jwtService.extractUsername(oldRefreshToken);
 
-        // 2) Carrega o usuário
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
 
-        // 3) Valida assinatura + expiração (JWT)
         if (!jwtService.validateToken(oldRefreshToken, user)) {
             throw new UnauthorizedException("Refresh token inválido ou expirado");
         }
 
-        // 4) Valida se o refresh token existe no banco (allowlist) e está ativo
         String oldHash = sha256(oldRefreshToken);
 
         RefreshToken stored = refreshTokenRepository.findByTokenHash(oldHash)
@@ -110,15 +92,12 @@ public class AuthService {
             throw new UnauthorizedException("Refresh token expirado");
         }
 
-        // 5) ROTATION: revoga o refresh atual
         stored.setRevokedAt(LocalDateTime.now());
         refreshTokenRepository.save(stored);
 
-        // 6) Emite novos tokens
         String newAccessToken = jwtService.generateToken(user);
         String newRefreshToken = jwtService.generateRefreshToken(user);
 
-        // 7) Salva novo refresh token
         persistRefreshToken(user, newRefreshToken);
 
         return LoginResponse.builder()
@@ -130,11 +109,6 @@ public class AuthService {
 
     }
 
-    /**
-     * (Opcional, mas recomendado) Logout:
-     * revoga o refresh token informado.
-     * Se você criar endpoint /auth/logout, ele chama isso.
-     */
     @Transactional
     public void logout(String refreshToken) {
         String hash = sha256(refreshToken);

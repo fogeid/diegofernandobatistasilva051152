@@ -30,18 +30,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Slf4j
 class SecurityIntegrationTest {
 
-    @Autowired private MockMvc mockMvc;
-    @Autowired private UserRepository userRepository;
-    @Autowired private RefreshTokenRepository refreshTokenRepository;
-    @Autowired private PasswordEncoder passwordEncoder;
-    @Autowired private ObjectMapper objectMapper;
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private static final String USERNAME = "testuser";
     private static final String PASSWORD = "password123";
 
     @BeforeEach
     void setUp() {
-        // ordem importa por FK
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -71,7 +79,6 @@ class SecurityIntegrationTest {
 
         JsonNode json = objectMapper.readTree(result.getResponse().getContentAsString());
 
-        // seu DTO usa accessToken (não "token")
         String accessToken = json.get("accessToken").asText();
         assertThat(accessToken).isNotBlank();
 
@@ -132,12 +139,9 @@ class SecurityIntegrationTest {
     @Test
     @DisplayName("Swagger deve responder (index liberado; swagger-ui.html pode estar protegido)")
     void shouldAllowSwaggerWithoutAuth() throws Exception {
-        // No seu log, /swagger-ui/index.html retornou 200
         mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().is2xxSuccessful());
 
-        // No seu log, /swagger-ui.html retornou 401 (está protegido no SecurityConfig)
-        // Se você decidir liberar, aí sim esse teste pode virar 3xx/2xx.
         mockMvc.perform(get("/swagger-ui.html"))
                 .andExpect(status().isUnauthorized());
     }

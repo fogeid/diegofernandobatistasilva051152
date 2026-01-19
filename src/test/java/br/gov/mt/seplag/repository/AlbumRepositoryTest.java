@@ -19,10 +19,6 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Testes de integração para AlbumRepository
- * Usa banco H2 em memória para testes
- */
 @DataJpaTest(properties = {
         "spring.flyway.enabled=false"
 })
@@ -43,11 +39,9 @@ class AlbumRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        // Limpa o banco
         albumRepository.deleteAll();
         artistRepository.deleteAll();
 
-        // Cria artista solo
         soloArtist = Artist.builder()
                 .name("Solo Artist")
                 .isBand(false)
@@ -55,7 +49,6 @@ class AlbumRepositoryTest {
                 .build();
         soloArtist = artistRepository.save(soloArtist);
 
-        // Cria banda
         band = Artist.builder()
                 .name("Test Band")
                 .isBand(true)
@@ -63,7 +56,6 @@ class AlbumRepositoryTest {
                 .build();
         band = artistRepository.save(band);
 
-        // Cria álbum de artista solo
         album1 = Album.builder()
                 .title("Solo Album")
                 .releaseYear(2020)
@@ -72,7 +64,6 @@ class AlbumRepositoryTest {
                 .build();
         album1 = albumRepository.save(album1);
 
-        // Cria álbum de banda
         album2 = Album.builder()
                 .title("Band Album")
                 .releaseYear(2021)

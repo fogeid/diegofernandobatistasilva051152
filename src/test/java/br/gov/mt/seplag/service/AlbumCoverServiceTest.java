@@ -33,19 +33,26 @@ import static org.mockito.Mockito.*;
 @DisplayName("AlbumCoverService Tests")
 class AlbumCoverServiceTest {
 
-    @Mock private AlbumCoverRepository albumCoverRepository;
-    @Mock private AlbumRepository albumRepository;
-    @Mock private NotificationService notificationService;
-    @Mock private MinioClient minioClient;
+    @Mock
+    private AlbumCoverRepository albumCoverRepository;
 
-    @InjectMocks private AlbumCoverService service;
+    @Mock
+    private AlbumRepository albumRepository;
+
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
+    private MinioClient minioClient;
+
+    @InjectMocks
+    private AlbumCoverService service;
 
     private Album album;
     private AlbumCover cover;
 
     @BeforeEach
     void setup() {
-        // Seta @Value fields
         ReflectionTestUtils.setField(service, "bucketName", "albums");
         ReflectionTestUtils.setField(service, "presignedUrlExpiration", 1800);
 
@@ -65,18 +72,10 @@ class AlbumCoverServiceTest {
                 .build();
     }
 
-    // -------------------------
-    // Helpers
-    // -------------------------
-
     private void mockPresignedUrl(String url) throws Exception {
         when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
                 .thenReturn(url);
     }
-
-    // -------------------------
-    // findByAlbumId / findById
-    // -------------------------
 
     @Test
     @DisplayName("findByAlbumId deve retornar lista de responses com imageUrl")
@@ -124,16 +123,11 @@ class AlbumCoverServiceTest {
         verifyNoInteractions(minioClient);
     }
 
-    // -------------------------
-    // uploadCover
-    // -------------------------
-
     @Test
     @DisplayName("uploadCover deve subir no MinIO, salvar e notificar")
     void uploadCover_shouldUploadSaveAndNotify() throws Exception {
         mockPresignedUrl("http://signed-url");
 
-        // arquivo válido
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "cover.jpg",
@@ -143,7 +137,6 @@ class AlbumCoverServiceTest {
 
         when(albumRepository.findById(10L)).thenReturn(Optional.of(album));
 
-        // putObject não retorna nada; só precisa não estourar
         when(minioClient.putObject(any(PutObjectArgs.class)))
                 .thenReturn(mock(ObjectWriteResponse.class));
 
@@ -209,10 +202,6 @@ class AlbumCoverServiceTest {
         verify(albumCoverRepository, never()).save(any());
         verifyNoInteractions(notificationService);
     }
-
-    // -------------------------
-    // validateImageFile (via uploadCover)
-    // -------------------------
 
     @Nested
     @DisplayName("Validações de arquivo")
@@ -284,7 +273,6 @@ class AlbumCoverServiceTest {
         @Test
         @DisplayName("Deve lançar BadRequest se tamanho for maior que 10MB")
         void shouldThrowIfTooLarge() {
-            // MockMultipartFile não deixa setar size manual, então criamos MultipartFile fake
             MultipartFile bigFile = mock(MultipartFile.class);
             try {
                 when(bigFile.isEmpty()).thenReturn(false);
@@ -300,10 +288,6 @@ class AlbumCoverServiceTest {
             verifyNoInteractions(minioClient);
         }
     }
-
-    // -------------------------
-    // delete / deleteByAlbumId
-    // -------------------------
 
     @Test
     @DisplayName("delete deve remover do MinIO e deletar do banco")
@@ -355,7 +339,6 @@ class AlbumCoverServiceTest {
 
         when(albumCoverRepository.findByAlbumId(10L)).thenReturn(List.of(c1, c2));
 
-        // espiona o service para verificar chamadas ao método delete(id)
         AlbumCoverService spy = Mockito.spy(service);
         doNothing().when(spy).delete(anyLong());
 

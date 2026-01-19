@@ -39,11 +39,20 @@ import static org.mockito.Mockito.*;
 @DisplayName("AuthService Tests")
 class AuthServiceTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private RefreshTokenRepository refreshTokenRepository;
-    @Mock private JwtService jwtService;
-    @Mock private AuthenticationManager authenticationManager;
-    @Mock private PasswordEncoder passwordEncoder;
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private JwtService jwtService;
+
+    @Mock
+    private AuthenticationManager authenticationManager;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks private AuthService authService;
 
@@ -52,9 +61,8 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Como o AuthService usa @Value, em teste unitário (Mockito puro) isso vem null.
         ReflectionTestUtils.setField(authService, "accessExpirationMs", 300000L);
-        ReflectionTestUtils.setField(authService, "refreshExpirationMs", 86400000L); // 1 dia
+        ReflectionTestUtils.setField(authService, "refreshExpirationMs", 86400000L);
 
         user = User.builder()
                 .id(1L)
@@ -81,7 +89,6 @@ class AuthServiceTest {
         when(jwtService.generateToken(user)).thenReturn(accessToken);
         when(jwtService.generateRefreshToken(user)).thenReturn(refreshToken);
 
-        // persistRefreshToken() salva no refreshTokenRepository
         when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
 
         LoginResponse response = authService.login(loginRequest);
@@ -97,7 +104,6 @@ class AuthServiceTest {
         verify(jwtService).generateToken(user);
         verify(jwtService).generateRefreshToken(user);
 
-        // garante que persistiu o refresh token em hash
         verify(refreshTokenRepository).save(argThat(rt ->
                 rt.getUser() == user
                         && rt.getTokenHash() != null
@@ -148,7 +154,6 @@ class AuthServiceTest {
                 .refreshToken(oldRefreshToken)
                 .build();
 
-        // Hash do refresh antigo (mesma lógica do AuthService)
         String oldHash = sha256ForTest(oldRefreshToken);
 
         RefreshToken stored = RefreshToken.builder()
@@ -177,15 +182,12 @@ class AuthServiceTest {
         assertThat(response.getRefreshToken()).isEqualTo(newRefreshToken);
         assertThat(response.getExpiresIn()).isEqualTo(300000L);
 
-        // rotation: revoga o antigo + salva novo
         verify(refreshTokenRepository).findByTokenHash(oldHash);
 
-        // 1) salvou o old com revokedAt != null
         verify(refreshTokenRepository).save(argThat(rt ->
                 rt.getTokenHash().equals(oldHash) && rt.getRevokedAt() != null
         ));
 
-        // 2) salvou o novo refresh
         verify(refreshTokenRepository).save(argThat(rt ->
                 rt.getUser() == user
                         && rt.getTokenHash().equals(sha256ForTest(newRefreshToken))
