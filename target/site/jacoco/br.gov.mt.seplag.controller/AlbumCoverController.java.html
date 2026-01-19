@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AlbumCoverController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Projeto-Seplag</a> &gt; <a href="index.source.html" class="el_package">br.gov.mt.seplag.controller</a> &gt; <span class="el_source">AlbumCoverController.java</span></div><h1>AlbumCoverController.java</h1><pre class="source lang-java linenums">package br.gov.mt.seplag.controller;
+
+import br.gov.mt.seplag.dto.AlbumCoverResponse;
+import br.gov.mt.seplag.service.AlbumCoverService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+
+@RestController
+@RequestMapping(&quot;/api/v1/albums/{albumId}/covers&quot;)
+<span class="fc" id="L21">@RequiredArgsConstructor</span>
+@Tag(name = &quot;Capas de Álbuns&quot;, description = &quot;Upload e gerenciamento de capas de álbuns&quot;)
+@SecurityRequirement(name = &quot;Bearer Authentication&quot;)
+public class AlbumCoverController {
+
+    private final AlbumCoverService albumCoverService;
+
+    @GetMapping
+    @Operation(summary = &quot;Listar capas&quot;, description = &quot;Lista todas as capas de um álbum&quot;)
+    public ResponseEntity&lt;List&lt;AlbumCoverResponse&gt;&gt; findByAlbumId(@PathVariable Long albumId) {
+<span class="nc" id="L31">        List&lt;AlbumCoverResponse&gt; covers = albumCoverService.findByAlbumId(albumId);</span>
+<span class="nc" id="L32">        return ResponseEntity.ok(covers);</span>
+    }
+
+    @GetMapping(&quot;/{coverId}&quot;)
+    @Operation(summary = &quot;Buscar capa&quot;, description = &quot;Busca capa por ID&quot;)
+    public ResponseEntity&lt;AlbumCoverResponse&gt; findById(
+            @PathVariable Long albumId,
+            @PathVariable Long coverId) {
+<span class="nc" id="L40">        AlbumCoverResponse cover = albumCoverService.findById(coverId);</span>
+<span class="nc" id="L41">        return ResponseEntity.ok(cover);</span>
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(
+            summary = &quot;Upload de capa&quot;,
+            description = &quot;Faz upload de uma imagem de capa para o álbum (max 10MB, formatos: jpg, png, gif, webp)&quot;
+    )
+    public ResponseEntity&lt;AlbumCoverResponse&gt; upload(
+            @PathVariable Long albumId,
+            @Parameter(description = &quot;Arquivo de imagem&quot;)
+            @RequestParam(&quot;file&quot;) MultipartFile file,
+            Authentication authentication) {
+
+<span class="nc" id="L55">        AlbumCoverResponse cover = albumCoverService.uploadCover(albumId, file, authentication.getName());</span>
+<span class="nc" id="L56">        return ResponseEntity.status(HttpStatus.CREATED).body(cover);</span>
+    }
+
+    @DeleteMapping(&quot;/{coverId}&quot;)
+    @Operation(summary = &quot;Deletar capa&quot;, description = &quot;Remove uma capa do álbum&quot;)
+    public ResponseEntity&lt;Void&gt; delete(
+            @PathVariable Long albumId,
+            @PathVariable Long coverId) {
+<span class="nc" id="L64">        albumCoverService.delete(coverId);</span>
+<span class="nc" id="L65">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

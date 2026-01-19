@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Projeto-Seplag</a> &gt; <a href="index.source.html" class="el_package">br.gov.mt.seplag.security</a> &gt; <span class="el_source">JwtService.java</span></div><h1>JwtService.java</h1><pre class="source lang-java linenums">package br.gov.mt.seplag.security;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
+
+@Service
+<span class="fc" id="L18">public class JwtService {</span>
+
+    @Value(&quot;${jwt.secret}&quot;)
+    private String secret;
+
+    @Value(&quot;${jwt.expiration}&quot;)
+    private Long expiration;
+
+    @Value(&quot;${jwt.refresh-expiration}&quot;)
+    private Long refreshExpiration;
+
+    public String generateToken(UserDetails userDetails) {
+<span class="fc" id="L30">        Map&lt;String, Object&gt; claims = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L31">        return createToken(claims, userDetails.getUsername(), expiration);</span>
+    }
+
+    public String generateRefreshToken(UserDetails userDetails) {
+<span class="fc" id="L35">        Map&lt;String, Object&gt; claims = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L36">        return createToken(claims, userDetails.getUsername(), refreshExpiration);</span>
+    }
+
+    private String createToken(Map&lt;String, Object&gt; claims, String subject, Long expirationTime) {
+<span class="fc" id="L40">        Date now = new Date();</span>
+<span class="fc" id="L41">        Date expiryDate = new Date(now.getTime() + expirationTime);</span>
+
+<span class="fc" id="L43">        return Jwts.builder()</span>
+<span class="fc" id="L44">                .claims(claims)</span>
+<span class="fc" id="L45">                .subject(subject)</span>
+<span class="fc" id="L46">                .issuedAt(now)</span>
+<span class="fc" id="L47">                .expiration(expiryDate)</span>
+<span class="fc" id="L48">                .signWith(getSigningKey())</span>
+<span class="fc" id="L49">                .compact();</span>
+    }
+
+    public String extractUsername(String token) {
+<span class="fc" id="L53">        return extractClaim(token, Claims::getSubject);</span>
+    }
+
+    public Date extractExpiration(String token) {
+<span class="fc" id="L57">        return extractClaim(token, Claims::getExpiration);</span>
+    }
+
+    public &lt;T&gt; T extractClaim(String token, Function&lt;Claims, T&gt; claimsResolver) {
+<span class="fc" id="L61">        final Claims claims = extractAllClaims(token);</span>
+<span class="fc" id="L62">        return claimsResolver.apply(claims);</span>
+    }
+
+    private Claims extractAllClaims(String token) {
+<span class="fc" id="L66">        return Jwts.parser()</span>
+<span class="fc" id="L67">                .verifyWith(getSigningKey())</span>
+<span class="fc" id="L68">                .build()</span>
+<span class="fc" id="L69">                .parseSignedClaims(token)</span>
+<span class="fc" id="L70">                .getPayload();</span>
+    }
+
+    private Boolean isTokenExpired(String token) {
+<span class="fc" id="L74">        return extractExpiration(token).before(new Date());</span>
+    }
+
+    public Boolean validateToken(String token, UserDetails userDetails) {
+<span class="fc" id="L78">        final String username = extractUsername(token);</span>
+<span class="pc bpc" id="L79" title="1 of 4 branches missed.">        return (username.equals(userDetails.getUsername()) &amp;&amp; !isTokenExpired(token));</span>
+    }
+
+    private SecretKey getSigningKey() {
+<span class="fc" id="L83">        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L84">        return Keys.hmacShaKeyFor(keyBytes);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

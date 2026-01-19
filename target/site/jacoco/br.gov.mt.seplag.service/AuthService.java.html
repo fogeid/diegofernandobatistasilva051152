@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Projeto-Seplag</a> &gt; <a href="index.source.html" class="el_package">br.gov.mt.seplag.service</a> &gt; <span class="el_source">AuthService.java</span></div><h1>AuthService.java</h1><pre class="source lang-java linenums">package br.gov.mt.seplag.service;
+
+import br.gov.mt.seplag.dto.LoginRequest;
+import br.gov.mt.seplag.dto.LoginResponse;
+import br.gov.mt.seplag.dto.RefreshTokenRequest;
+import br.gov.mt.seplag.entity.RefreshToken;
+import br.gov.mt.seplag.entity.User;
+import br.gov.mt.seplag.exception.BadRequestException;
+import br.gov.mt.seplag.exception.UnauthorizedException;
+import br.gov.mt.seplag.repository.RefreshTokenRepository;
+import br.gov.mt.seplag.repository.UserRepository;
+import br.gov.mt.seplag.security.JwtService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.LocalDateTime;
+import java.util.HexFormat;
+
+@Service
+<span class="fc" id="L28">@RequiredArgsConstructor</span>
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value(&quot;${jwt.expiration}&quot;)
+    private Long accessExpirationMs;
+
+    @Value(&quot;${jwt.refresh-expiration}&quot;)
+    private Long refreshExpirationMs;
+
+    /**
+     * Login:
+     * - autentica username/senha
+     * - gera access + refresh
+     * - salva refreshToken em formato hash (multi-device)
+     */
+    @Transactional
+    public LoginResponse login(LoginRequest request) {
+<span class="fc" id="L51">        authenticationManager.authenticate(</span>
+                new UsernamePasswordAuthenticationToken(
+<span class="fc" id="L53">                        request.getUsername(),</span>
+<span class="fc" id="L54">                        request.getPassword()</span>
+                )
+        );
+
+<span class="fc" id="L58">        User user = userRepository.findByUsername(request.getUsername())</span>
+<span class="fc" id="L59">                .orElseThrow(() -&gt; new UsernameNotFoundException(&quot;Usuário não encontrado&quot;));</span>
+
+<span class="fc" id="L61">        String accessToken = jwtService.generateToken(user);</span>
+<span class="fc" id="L62">        String refreshToken = jwtService.generateRefreshToken(user);</span>
+
+<span class="fc" id="L64">        persistRefreshToken(user, refreshToken);</span>
+
+<span class="fc" id="L66">        return LoginResponse.builder()</span>
+<span class="fc" id="L67">                .tokenType(&quot;Bearer&quot;)</span>
+<span class="fc" id="L68">                .accessToken(accessToken)</span>
+<span class="fc" id="L69">                .refreshToken(refreshToken)</span>
+<span class="fc" id="L70">                .expiresIn(accessExpirationMs)</span>
+<span class="fc" id="L71">                .build();</span>
+
+    }
+
+    /**
+     * Refresh token (ROTATION):
+     * - valida assinatura/expiração do refresh token JWT
+     * - confere se ele existe no banco (hash) e não está revogado/expirado
+     * - revoga o refresh antigo
+     * - gera novo access + novo refresh
+     * - salva o novo refresh (hash)
+     */
+    @Transactional
+    public LoginResponse refreshToken(RefreshTokenRequest request) {
+<span class="fc" id="L85">        final String oldRefreshToken = request.getRefreshToken();</span>
+
+        // 1) Extrai username do refresh token
+<span class="fc" id="L88">        final String username = jwtService.extractUsername(oldRefreshToken);</span>
+
+        // 2) Carrega o usuário
+<span class="fc" id="L91">        User user = userRepository.findByUsername(username)</span>
+<span class="pc" id="L92">                .orElseThrow(() -&gt; new UsernameNotFoundException(&quot;Usuário não encontrado&quot;));</span>
+
+        // 3) Valida assinatura + expiração (JWT)
+<span class="fc bfc" id="L95" title="All 2 branches covered.">        if (!jwtService.validateToken(oldRefreshToken, user)) {</span>
+<span class="fc" id="L96">            throw new UnauthorizedException(&quot;Refresh token inválido ou expirado&quot;);</span>
+        }
+
+        // 4) Valida se o refresh token existe no banco (allowlist) e está ativo
+<span class="fc" id="L100">        String oldHash = sha256(oldRefreshToken);</span>
+
+<span class="fc" id="L102">        RefreshToken stored = refreshTokenRepository.findByTokenHash(oldHash)</span>
+<span class="fc" id="L103">                .orElseThrow(() -&gt; new UnauthorizedException(&quot;Refresh token inválido ou revogado&quot;));</span>
+
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        if (stored.getRevokedAt() != null) {</span>
+<span class="fc" id="L106">            throw new UnauthorizedException(&quot;Refresh token inválido ou revogado&quot;);</span>
+        }
+
+<span class="fc bfc" id="L109" title="All 2 branches covered.">        if (stored.getExpiresAt().isBefore(LocalDateTime.now())) {</span>
+<span class="fc" id="L110">            throw new UnauthorizedException(&quot;Refresh token expirado&quot;);</span>
+        }
+
+        // 5) ROTATION: revoga o refresh atual
+<span class="fc" id="L114">        stored.setRevokedAt(LocalDateTime.now());</span>
+<span class="fc" id="L115">        refreshTokenRepository.save(stored);</span>
+
+        // 6) Emite novos tokens
+<span class="fc" id="L118">        String newAccessToken = jwtService.generateToken(user);</span>
+<span class="fc" id="L119">        String newRefreshToken = jwtService.generateRefreshToken(user);</span>
+
+        // 7) Salva novo refresh token
+<span class="fc" id="L122">        persistRefreshToken(user, newRefreshToken);</span>
+
+<span class="fc" id="L124">        return LoginResponse.builder()</span>
+<span class="fc" id="L125">                .tokenType(&quot;Bearer&quot;)</span>
+<span class="fc" id="L126">                .accessToken(newAccessToken)</span>
+<span class="fc" id="L127">                .refreshToken(newRefreshToken)</span>
+<span class="fc" id="L128">                .expiresIn(accessExpirationMs)</span>
+<span class="fc" id="L129">                .build();</span>
+
+    }
+
+    /**
+     * (Opcional, mas recomendado) Logout:
+     * revoga o refresh token informado.
+     * Se você criar endpoint /auth/logout, ele chama isso.
+     */
+    @Transactional
+    public void logout(String refreshToken) {
+<span class="fc" id="L140">        String hash = sha256(refreshToken);</span>
+
+<span class="fc" id="L142">        refreshTokenRepository.findByTokenHash(hash).ifPresent(stored -&gt; {</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">            if (stored.getRevokedAt() == null) {</span>
+<span class="fc" id="L144">                stored.setRevokedAt(LocalDateTime.now());</span>
+<span class="fc" id="L145">                refreshTokenRepository.save(stored);</span>
+            }
+<span class="fc" id="L147">        });</span>
+<span class="fc" id="L148">    }</span>
+
+    @Transactional
+    public User registerUser(String username, String password) {
+<span class="fc bfc" id="L152" title="All 2 branches covered.">        if (userRepository.existsByUsername(username)) {</span>
+<span class="fc" id="L153">            throw new BadRequestException(&quot;Username já existe&quot;);</span>
+        }
+
+<span class="fc" id="L156">        User user = User.builder()</span>
+<span class="fc" id="L157">                .username(username)</span>
+<span class="fc" id="L158">                .password(passwordEncoder.encode(password))</span>
+<span class="fc" id="L159">                .build();</span>
+
+<span class="fc" id="L161">        return userRepository.save(user);</span>
+    }
+
+    private void persistRefreshToken(User user, String refreshToken) {
+<span class="fc" id="L165">        RefreshToken entity = RefreshToken.builder()</span>
+<span class="fc" id="L166">                .user(user)</span>
+<span class="fc" id="L167">                .tokenHash(sha256(refreshToken))</span>
+<span class="fc" id="L168">                .expiresAt(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))</span>
+<span class="fc" id="L169">                .revokedAt(null)</span>
+<span class="fc" id="L170">                .build();</span>
+
+<span class="fc" id="L172">        refreshTokenRepository.save(entity);</span>
+<span class="fc" id="L173">    }</span>
+
+    private String sha256(String raw) {
+        try {
+<span class="fc" id="L177">            MessageDigest digest = MessageDigest.getInstance(&quot;SHA-256&quot;);</span>
+<span class="fc" id="L178">            byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));</span>
+<span class="fc" id="L179">            return HexFormat.of().formatHex(hash);</span>
+<span class="nc" id="L180">        } catch (Exception e) {</span>
+<span class="nc" id="L181">            throw new IllegalStateException(&quot;Erro ao gerar hash SHA-256&quot;, e);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

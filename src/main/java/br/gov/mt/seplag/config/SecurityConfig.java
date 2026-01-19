@@ -1,6 +1,7 @@
 package br.gov.mt.seplag.config;
 
 import br.gov.mt.seplag.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,65 +34,43 @@ public class SecurityConfig {
         http
                 .cors(cors -> {})
                 .csrf(AbstractHttpConfigurer::disable)
+
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\":\"Unauthorized\"}");
+                        })
+                )
+
                 .authorizeHttpRequests(auth -> auth
-                        // Endpoints públicos
                         .requestMatchers(
-                                // Autenticação
                                 "/api/v1/auth/**",
-
-                                //WebSocket
                                 "/ws/**",
-                                "/ws",
-                                "/ws/info",
-
-                                // Static resources
-                                "/websocket-test.html",
-                                "/static/**",
-                                "/*.html",
-
-                                // Testes (REMOVER EM PRODUÇÃO)
-                                "/api/test/**",
-
-                                // H2 Console (apenas desenvolvimento)
                                 "/h2-console/**",
-
-                                // Actuator
-                                "/actuator/**",
-                                "/actuator/health/**",
-
-                                // Swagger/OpenAPI
                                 "/swagger-ui/**",
-                                "/swagger-ui.html",
                                 "/v3/api-docs/**",
-                                "/swagger-resources/**",
-                                "/webjars/**",
-
-                                // Error page
                                 "/error"
                         ).permitAll()
-
-                        // Todas as outras requisições requerem autenticação
                         .anyRequest().authenticated()
                 )
 
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
                 .authenticationProvider(authenticationProvider())
-
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.disable())
-                );
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()));
 
         return http.build();
     }
 
+
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }

@@ -32,39 +32,62 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
 
+        // Sem Bearer: segue normalmente (endpoint pode ser público)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        try {
-            final String jwt = authHeader.substring(7);
+        final String jwt = authHeader.substring(7).trim();
 
-            final String username = jwtService.extractUsername(jwt);
-
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-
-                if (jwtService.validateToken(jwt, userDetails)) {
-
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
-                    );
-
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                }
-            }
-        } catch (Exception e) {
-            logger.error("Erro ao processar token JWT", e);
+        if (jwt.isEmpty()) {
+            writeUnauthorized(response, "Invalid token");
+            return;
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            final String username = jwtService.extractUsername(jwt);
+
+            if (username == null || username.isBlank()) {
+                writeUnauthorized(response, "Invalid token");
+                return;
+            }
+
+            // Se já está autenticado no contexto, não refaz
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+            if (!jwtService.validateToken(jwt, userDetails)) {
+                writeUnauthorized(response, "Invalid token");
+                return;
+            }
+
+            var authToken = new UsernamePasswordAuthenticationToken(
+                    userDetails,
+                    null,
+                    userDetails.getAuthorities()
+            );
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+
+            filterChain.doFilter(request, response);
+
+        } catch (Exception e) {
+            // Se quiser, pode logar em debug para não poluir produção
+            // logger.debug("JWT inválido", e);
+            writeUnauthorized(response, "Invalid token");
+        }
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+        if (response.isCommitted()) return;
+
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"error\":\"" + message + "\"}");
     }
 }

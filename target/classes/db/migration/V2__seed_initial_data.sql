@@ -1,90 +1,63 @@
 -- V2__seed_initial_data.sql
--- Popular dados iniciais: usuário admin e dados de exemplo dos artistas/álbuns
+-- Dados iniciais para PostgreSQL
 
--- ========================================
--- Usuário Admin (senha: admin123)
--- ========================================
--- Hash BCrypt gerado para a senha "admin123"
--- Você pode gerar novos hashes em: https://bcrypt-generator.com/
-INSERT INTO users (username, password) VALUES
-    ('admin', '$2a$10$N9qo8uLOickgx2ZrVzY6j.5bZjqC5RnIvGgYqd4Yh8qG6qKqxF.6i');
+-- Usuário admin (senha: admin123)
+-- Hash BCrypt: $2a$10$VBQNckEMXfo9nsrHBQlcfeBrSSk1lXQ.C6SPEqQK78wBDvYkzCFqS
+INSERT INTO users (username, password, created_at)
+VALUES ('admin', '$2a$10$VBQNckEMXfo9nsrHBQlcfeBrSSk1lXQ.C6SPEqQK78wBDvYkzCFqS', CURRENT_TIMESTAMP);
 
--- ========================================
--- Artistas Conforme Especificação
--- ========================================
-INSERT INTO artists (name, is_band) VALUES
-                                        ('Serj Tankian', FALSE),      -- ID: 1
-                                        ('Mike Shinoda', FALSE),       -- ID: 2
-                                        ('Michel Teló', FALSE),        -- ID: 3
-                                        ('Guns N'' Roses', TRUE);      -- ID: 4 (aspas simples escapadas com '')
+-- Artistas
+INSERT INTO artists (name, is_band, created_at, updated_at) VALUES
+                                                                ('Serj Tankian', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                ('Mike Shinoda', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                ('Michel Teló', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                ('Guns N'' Roses', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- ========================================
--- Álbuns Conforme Especificação
--- ========================================
+-- Álbuns
+INSERT INTO albums (title, release_year, created_at, updated_at) VALUES
+                                                                     ('Harakiri', 2012, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Black Blooms', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Perplex Cities', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Elect the Dead', 2007, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Post Traumatic', 2018, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Dropped Frames, Vol. 1', 2020, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Dropped Frames, Vol. 2', 2020, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Dropped Frames, Vol. 3', 2021, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Bem Sertanejo', 2013, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Bem Sertanejo - O Show (Ao Vivo)', 2014, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Use Your Illusion I', 1991, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Use Your Illusion II', 1991, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                     ('Greatest Hits', 2004, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Álbuns de Serj Tankian
-INSERT INTO albums (title, release_year) VALUES
-                                             ('Harakiri', 2012),                    -- ID: 1
-                                             ('Black Blooms', NULL),                -- ID: 2
-                                             ('The Rough Dog', NULL);               -- ID: 3
-
--- Álbuns de Mike Shinoda
-INSERT INTO albums (title, release_year) VALUES
-                                             ('The Rising Tied', 2005),             -- ID: 4
-                                             ('Post Traumatic', 2018),              -- ID: 5
-                                             ('Post Traumatic EP', 2018),           -- ID: 6
-                                             ('Where''d You Go', NULL);             -- ID: 7
-
--- Álbuns de Michel Teló
-INSERT INTO albums (title, release_year) VALUES
-                                             ('Bem Sertanejo', 2011),                                    -- ID: 8
-                                             ('Bem Sertanejo - O Show (Ao Vivo)', 2012),                -- ID: 9
-                                             ('Bem Sertanejo - (1ª Temporada) - EP', 2011);             -- ID: 10
-
--- Álbuns de Guns N' Roses
-INSERT INTO albums (title, release_year) VALUES
-                                             ('Use Your Illusion I', 1991),         -- ID: 11
-                                             ('Use Your Illusion II', 1991),        -- ID: 12
-                                             ('Greatest Hits', 2004);               -- ID: 13
-
--- ========================================
--- Relacionamentos Artist <-> Album
--- ========================================
-
--- Serj Tankian (ID: 1) -> Seus álbuns
+-- Relacionamentos artista-álbum
 INSERT INTO artist_albums (artist_id, album_id) VALUES
-                                                    (1, 1),  -- Serj Tankian -> Harakiri
-                                                    (1, 2),  -- Serj Tankian -> Black Blooms
-                                                    (1, 3);  -- Serj Tankian -> The Rough Dog
+-- Serj Tankian (ID: 1)
+(1, 1),  -- Harakiri
+(1, 2),  -- Black Blooms
+(1, 3),  -- Perplex Cities
+(1, 4),  -- Elect the Dead
 
--- Mike Shinoda (ID: 2) -> Seus álbuns
-INSERT INTO artist_albums (artist_id, album_id) VALUES
-                                                    (2, 4),  -- Mike Shinoda -> The Rising Tied
-                                                    (2, 5),  -- Mike Shinoda -> Post Traumatic
-                                                    (2, 6),  -- Mike Shinoda -> Post Traumatic EP
-                                                    (2, 7);  -- Mike Shinoda -> Where'd You Go
+-- Mike Shinoda (ID: 2)
+(2, 5),  -- Post Traumatic
+(2, 6),  -- Dropped Frames, Vol. 1
+(2, 7),  -- Dropped Frames, Vol. 2
+(2, 8),  -- Dropped Frames, Vol. 3
 
--- Michel Teló (ID: 3) -> Seus álbuns
-INSERT INTO artist_albums (artist_id, album_id) VALUES
-                                                    (3, 8),   -- Michel Teló -> Bem Sertanejo
-                                                    (3, 9),   -- Michel Teló -> Bem Sertanejo - O Show (Ao Vivo)
-                                                    (3, 10);  -- Michel Teló -> Bem Sertanejo - (1ª Temporada) - EP
+-- Michel Teló (ID: 3)
+(3, 9),  -- Bem Sertanejo
+(3, 10), -- Bem Sertanejo - O Show
 
--- Guns N' Roses (ID: 4) -> Seus álbuns
-INSERT INTO artist_albums (artist_id, album_id) VALUES
-                                                    (4, 11),  -- Guns N' Roses -> Use Your Illusion I
-                                                    (4, 12),  -- Guns N' Roses -> Use Your Illusion II
-                                                    (4, 13);  -- Guns N' Roses -> Greatest Hits
+-- Guns N' Roses (ID: 4)
+(4, 11), -- Use Your Illusion I
+(4, 12), -- Use Your Illusion II
+(4, 13); -- Greatest Hits
 
--- ========================================
--- Verificação: Contagem de Registros
--- ========================================
--- Descomente as linhas abaixo para verificar após execução
-
--- SELECT 'Users:' as tabela, COUNT(*) as total FROM users
--- UNION ALL
--- SELECT 'Artists:', COUNT(*) FROM artists
--- UNION ALL
--- SELECT 'Albums:', COUNT(*) FROM albums
--- UNION ALL
--- SELECT 'Relationships:', COUNT(*) FROM artist_albums;
+-- Regionais (serão sincronizadas via API, mas podemos adicionar algumas iniciais)
+INSERT INTO regionais (id, nome, ativo, created_at, updated_at) VALUES
+                                                                    (1, 'Cuiabá', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                    (2, 'Rondonópolis', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                    (3, 'Sinop', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                    (4, 'Tangará da Serra', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                    (5, 'Cáceres', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                    (6, 'Barra do Garças', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                                                                    (7, 'Alta Floresta', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Projeto-Seplag</a> &gt; <a href="index.source.html" class="el_package">br.gov.mt.seplag.security</a> &gt; <span class="el_source">JwtAuthenticationFilter.java</span></div><h1>JwtAuthenticationFilter.java</h1><pre class="source lang-java linenums">package br.gov.mt.seplag.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+@Component
+<span class="fc" id="L20">@RequiredArgsConstructor</span>
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtService jwtService;
+    private final UserDetailsService userDetailsService;
+
+    @Override
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
+
+<span class="fc" id="L33">        final String authHeader = request.getHeader(&quot;Authorization&quot;);</span>
+
+        // Sem Bearer: segue normalmente (endpoint pode ser público)
+<span class="fc bfc" id="L36" title="All 4 branches covered.">        if (authHeader == null || !authHeader.startsWith(&quot;Bearer &quot;)) {</span>
+<span class="fc" id="L37">            filterChain.doFilter(request, response);</span>
+<span class="fc" id="L38">            return;</span>
+        }
+
+<span class="fc" id="L41">        final String jwt = authHeader.substring(7).trim();</span>
+
+<span class="pc bpc" id="L43" title="1 of 2 branches missed.">        if (jwt.isEmpty()) {</span>
+<span class="nc" id="L44">            writeUnauthorized(response, &quot;Invalid token&quot;);</span>
+<span class="nc" id="L45">            return;</span>
+        }
+
+        try {
+<span class="fc" id="L49">            final String username = jwtService.extractUsername(jwt);</span>
+
+<span class="pc bpc" id="L51" title="2 of 4 branches missed.">            if (username == null || username.isBlank()) {</span>
+<span class="nc" id="L52">                writeUnauthorized(response, &quot;Invalid token&quot;);</span>
+<span class="nc" id="L53">                return;</span>
+            }
+
+            // Se já está autenticado no contexto, não refaz
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">            if (SecurityContextHolder.getContext().getAuthentication() != null) {</span>
+<span class="nc" id="L58">                filterChain.doFilter(request, response);</span>
+<span class="nc" id="L59">                return;</span>
+            }
+
+<span class="fc" id="L62">            UserDetails userDetails = userDetailsService.loadUserByUsername(username);</span>
+
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">            if (!jwtService.validateToken(jwt, userDetails)) {</span>
+<span class="nc" id="L65">                writeUnauthorized(response, &quot;Invalid token&quot;);</span>
+<span class="nc" id="L66">                return;</span>
+            }
+
+<span class="fc" id="L69">            var authToken = new UsernamePasswordAuthenticationToken(</span>
+                    userDetails,
+                    null,
+<span class="fc" id="L72">                    userDetails.getAuthorities()</span>
+            );
+<span class="fc" id="L74">            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));</span>
+<span class="fc" id="L75">            SecurityContextHolder.getContext().setAuthentication(authToken);</span>
+
+<span class="fc" id="L77">            filterChain.doFilter(request, response);</span>
+
+<span class="nc" id="L79">        } catch (Exception e) {</span>
+            // Se quiser, pode logar em debug para não poluir produção
+            // logger.debug(&quot;JWT inválido&quot;, e);
+<span class="nc" id="L82">            writeUnauthorized(response, &quot;Invalid token&quot;);</span>
+<span class="fc" id="L83">        }</span>
+<span class="fc" id="L84">    }</span>
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        if (response.isCommitted()) return;</span>
+
+<span class="nc" id="L89">        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);</span>
+<span class="nc" id="L90">        response.setContentType(&quot;application/json&quot;);</span>
+<span class="nc" id="L91">        response.getWriter().write(&quot;{\&quot;error\&quot;:\&quot;&quot; + message + &quot;\&quot;}&quot;);</span>
+<span class="nc" id="L92">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

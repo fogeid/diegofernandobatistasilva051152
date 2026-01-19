@@ -32,4 +32,11 @@ public class AuthController {
         LoginResponse response = authService.refreshToken(request);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "Revoga o refresh token informado")
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
+        authService.logout(request.getRefreshToken());
+        return ResponseEntity.noContent().build();
+    }
 }

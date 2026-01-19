@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RegionalService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Projeto-Seplag</a> &gt; <a href="index.source.html" class="el_package">br.gov.mt.seplag.service</a> &gt; <span class="el_source">RegionalService.java</span></div><h1>RegionalService.java</h1><pre class="source lang-java linenums">package br.gov.mt.seplag.service;
+
+import br.gov.mt.seplag.dto.RegionalResponse;
+import br.gov.mt.seplag.entity.Regional;
+import br.gov.mt.seplag.repository.RegionalRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.time.Duration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+<span class="fc" id="L21">@RequiredArgsConstructor</span>
+@Transactional(readOnly = true)
+<span class="fc" id="L23">@Slf4j</span>
+public class RegionalService {
+
+    private final RegionalRepository regionalRepository;
+
+    private static final String API_URL = &quot;https://integrador-argus-api.geia.vip/v1/regionais&quot;;
+<span class="fc" id="L29">    private static final Duration TIMEOUT = Duration.ofSeconds(10);</span>
+
+<span class="fc" id="L31">    private final WebClient webClient = WebClient.builder()</span>
+<span class="fc" id="L32">            .baseUrl(API_URL)</span>
+<span class="fc" id="L33">            .build();</span>
+
+<span class="fc" id="L35">    private final ObjectMapper objectMapper = new ObjectMapper();</span>
+
+    public List&lt;RegionalResponse&gt; findAll() {
+<span class="nc" id="L38">        return regionalRepository.findAll()</span>
+<span class="nc" id="L39">                .stream()</span>
+<span class="nc" id="L40">                .map(this::toResponse)</span>
+<span class="nc" id="L41">                .collect(Collectors.toList());</span>
+    }
+
+    public List&lt;RegionalResponse&gt; findActive() {
+<span class="nc" id="L45">        return regionalRepository.findByAtivoTrue()</span>
+<span class="nc" id="L46">                .stream()</span>
+<span class="nc" id="L47">                .map(this::toResponse)</span>
+<span class="nc" id="L48">                .collect(Collectors.toList());</span>
+    }
+
+    public List&lt;RegionalResponse&gt; findInactive() {
+<span class="nc" id="L52">        return regionalRepository.findByAtivoFalse()</span>
+<span class="nc" id="L53">                .stream()</span>
+<span class="nc" id="L54">                .map(this::toResponse)</span>
+<span class="nc" id="L55">                .collect(Collectors.toList());</span>
+    }
+
+    public RegionalResponse findById(Integer id) {
+<span class="nc" id="L59">        Regional regional = regionalRepository.findById(id)</span>
+<span class="nc" id="L60">                .orElseThrow(() -&gt; new RuntimeException(&quot;Regional não encontrada com ID: &quot; + id));</span>
+
+<span class="nc" id="L62">        return toResponse(regional);</span>
+    }
+
+    @Transactional
+    public SyncResult synchronize() {
+<span class="nc" id="L67">        log.info(&quot;Iniciando sincronização com API externa: {}&quot;, API_URL);</span>
+
+        try {
+<span class="nc" id="L70">            String jsonResponse = webClient</span>
+<span class="nc" id="L71">                    .get()</span>
+<span class="nc" id="L72">                    .retrieve()</span>
+<span class="nc" id="L73">                    .bodyToMono(String.class)</span>
+<span class="nc" id="L74">                    .timeout(TIMEOUT)</span>
+<span class="nc" id="L75">                    .block();</span>
+
+<span class="nc bnc" id="L77" title="All 4 branches missed.">            if (jsonResponse == null || jsonResponse.isEmpty()) {</span>
+<span class="nc" id="L78">                throw new RuntimeException(&quot;Resposta vazia da API externa&quot;);</span>
+            }
+
+<span class="nc" id="L81">            log.debug(&quot;Resposta da API: {}&quot;, jsonResponse);</span>
+
+<span class="nc" id="L83">            JsonNode root = objectMapper.readTree(jsonResponse);</span>
+
+<span class="nc" id="L85">            JsonNode regionaisNode = null;</span>
+
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            if (root.has(&quot;regionais&quot;)) {</span>
+<span class="nc" id="L88">                regionaisNode = root.get(&quot;regionais&quot;);</span>
+            }
+<span class="nc bnc" id="L90" title="All 2 branches missed.">            else if (root.has(&quot;data&quot;)) {</span>
+<span class="nc" id="L91">                regionaisNode = root.get(&quot;data&quot;);</span>
+            }
+<span class="nc bnc" id="L93" title="All 2 branches missed.">            else if (root.isArray()) {</span>
+<span class="nc" id="L94">                regionaisNode = root;</span>
+            }
+
+<span class="nc bnc" id="L97" title="All 4 branches missed.">            if (regionaisNode == null || !regionaisNode.isArray()) {</span>
+<span class="nc" id="L98">                log.error(&quot;Formato de resposta inesperado: {}&quot;, jsonResponse);</span>
+<span class="nc" id="L99">                throw new RuntimeException(&quot;Formato de resposta inválido da API. Esperado array de regionais.&quot;);</span>
+            }
+
+<span class="nc bnc" id="L102" title="All 2 branches missed.">            if (regionaisNode.size() == 0) {</span>
+<span class="nc" id="L103">                log.warn(&quot;API retornou array vazio de regionais&quot;);</span>
+<span class="nc" id="L104">                return new SyncResult(0, 0, 0);</span>
+            }
+
+<span class="nc" id="L107">            Set&lt;Integer&gt; idsFromApi = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L108">            int novos = 0;</span>
+<span class="nc" id="L109">            int atualizados = 0;</span>
+
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            for (JsonNode node : regionaisNode) {</span>
+<span class="nc bnc" id="L112" title="All 4 branches missed.">                if (!node.has(&quot;id&quot;) || !node.has(&quot;nome&quot;)) {</span>
+<span class="nc" id="L113">                    log.warn(&quot;Regional sem id ou nome, ignorando: {}&quot;, node);</span>
+<span class="nc" id="L114">                    continue;</span>
+                }
+
+<span class="nc" id="L117">                Integer id = node.get(&quot;id&quot;).asInt();</span>
+<span class="nc" id="L118">                String nome = node.get(&quot;nome&quot;).asText();</span>
+
+<span class="nc" id="L120">                idsFromApi.add(id);</span>
+
+<span class="nc" id="L122">                Regional existing = regionalRepository.findById(id).orElse(null);</span>
+
+<span class="nc bnc" id="L124" title="All 2 branches missed.">                if (existing == null) {</span>
+<span class="nc" id="L125">                    Regional novo = Regional.builder()</span>
+<span class="nc" id="L126">                            .id(id)</span>
+<span class="nc" id="L127">                            .nome(nome)</span>
+<span class="nc" id="L128">                            .ativo(true)</span>
+<span class="nc" id="L129">                            .build();</span>
+<span class="nc" id="L130">                    regionalRepository.save(novo);</span>
+<span class="nc" id="L131">                    novos++;</span>
+<span class="nc" id="L132">                    log.info(&quot;Nova regional inserida: ID={}, Nome={}&quot;, id, nome);</span>
+
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                } else if (!existing.getNome().equals(nome)) {</span>
+<span class="nc" id="L135">                    existing.setAtivo(false);</span>
+<span class="nc" id="L136">                    regionalRepository.save(existing);</span>
+
+<span class="nc" id="L138">                    Regional novo = Regional.builder()</span>
+<span class="nc" id="L139">                            .id(id)</span>
+<span class="nc" id="L140">                            .nome(nome)</span>
+<span class="nc" id="L141">                            .ativo(true)</span>
+<span class="nc" id="L142">                            .build();</span>
+<span class="nc" id="L143">                    regionalRepository.save(novo);</span>
+<span class="nc" id="L144">                    atualizados++;</span>
+<span class="nc" id="L145">                    log.info(&quot;Regional com nome alterado: ID={}, NomeAntigo={}, NomeNovo={}&quot;,</span>
+<span class="nc" id="L146">                            id, existing.getNome(), nome);</span>
+
+<span class="nc bnc" id="L148" title="All 2 branches missed.">                } else if (!existing.getAtivo()) {</span>
+                    // Estava inativa, reativa
+<span class="nc" id="L150">                    existing.setAtivo(true);</span>
+<span class="nc" id="L151">                    regionalRepository.save(existing);</span>
+<span class="nc" id="L152">                    atualizados++;</span>
+<span class="nc" id="L153">                    log.info(&quot;Regional reativada: ID={}, Nome={}&quot;, id, nome);</span>
+                }
+<span class="nc" id="L155">            }</span>
+
+<span class="nc" id="L157">            List&lt;Regional&gt; todasAtivas = regionalRepository.findByAtivoTrue();</span>
+<span class="nc" id="L158">            int inativados = 0;</span>
+
+<span class="nc bnc" id="L160" title="All 2 branches missed.">            for (Regional regional : todasAtivas) {</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                if (!idsFromApi.contains(regional.getId())) {</span>
+<span class="nc" id="L162">                    regional.setAtivo(false);</span>
+<span class="nc" id="L163">                    regionalRepository.save(regional);</span>
+<span class="nc" id="L164">                    inativados++;</span>
+<span class="nc" id="L165">                    log.info(&quot;Regional inativada (ausente na API): ID={}, Nome={}&quot;,</span>
+<span class="nc" id="L166">                            regional.getId(), regional.getNome());</span>
+                }
+<span class="nc" id="L168">            }</span>
+
+<span class="nc" id="L170">            SyncResult result = new SyncResult(novos, atualizados, inativados);</span>
+<span class="nc" id="L171">            log.info(&quot;Sincronização concluída: {}&quot;, result);</span>
+
+<span class="nc" id="L173">            return result;</span>
+
+<span class="nc" id="L175">        } catch (Exception e) {</span>
+<span class="nc" id="L176">            log.error(&quot;Erro ao sincronizar com API externa&quot;, e);</span>
+<span class="nc" id="L177">            throw new RuntimeException(&quot;Erro ao sincronizar: &quot; + e.getMessage(), e);</span>
+        }
+    }
+
+    private RegionalResponse toResponse(Regional regional) {
+<span class="nc" id="L182">        return RegionalResponse.builder()</span>
+<span class="nc" id="L183">                .id(regional.getId())</span>
+<span class="nc" id="L184">                .nome(regional.getNome())</span>
+<span class="nc" id="L185">                .ativo(regional.getAtivo())</span>
+<span class="nc" id="L186">                .createdAt(regional.getCreatedAt())</span>
+<span class="nc" id="L187">                .updatedAt(regional.getUpdatedAt())</span>
+<span class="nc" id="L188">                .build();</span>
+    }
+
+    public static class SyncResult {
+        public final int novos;
+        public final int atualizados;
+        public final int inativados;
+
+<span class="nc" id="L196">        public SyncResult(int novos, int atualizados, int inativados) {</span>
+<span class="nc" id="L197">            this.novos = novos;</span>
+<span class="nc" id="L198">            this.atualizados = atualizados;</span>
+<span class="nc" id="L199">            this.inativados = inativados;</span>
+<span class="nc" id="L200">        }</span>
+
+        @Override
+        public String toString() {
+<span class="nc" id="L204">            return String.format(&quot;Novos: %d, Atualizados: %d, Inativados: %d&quot;,</span>
+<span class="nc" id="L205">                    novos, atualizados, inativados);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

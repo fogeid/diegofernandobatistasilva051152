@@ -1,0 +1,10 @@
+br/gov/mt/seplag/service/AuthServiceTest.class
+br/gov/mt/seplag/service/AlbumServiceTest.class
+br/gov/mt/seplag/security/JwtServiceTest.class
+br/gov/mt/seplag/security/SecurityIntegrationTest.class
+br/gov/mt/seplag/ProjetoSeplagApplicationTests.class
+br/gov/mt/seplag/service/AlbumCoverServiceTest$FileValidationTests.class
+br/gov/mt/seplag/service/AlbumCoverServiceTest.class
+br/gov/mt/seplag/auth/AuthIntegrationTest.class
+br/gov/mt/seplag/service/ArtistServiceTest.class
+br/gov/mt/seplag/repository/AlbumRepositoryTest.class
