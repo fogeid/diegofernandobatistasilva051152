@@ -23,7 +23,7 @@ public class OpenAPIConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("API de Gerenciamento Musical - Seplag")
+                        .title("Projeto para o Processo Seletivo Seplag 2026")
                         .version("1.0.0")
                         .description("""
                                 API REST para gerenciamento de artistas, álbuns e capas.
@@ -43,9 +43,9 @@ public class OpenAPIConfig {
                                 5. Teste os endpoints protegidos!
                                 """)
                         .contact(new Contact()
-                                .name("Equipe Seplag")
-                                .email("contato@seplag.mt.gov.br")
-                                .url("https://www.seplag.mt.gov.br"))
+                                .name("Diego Fernando Batista Silva")
+                                .email("batista.diego@protonmail.com")
+                                .url("https://fogeid.github.io"))
                         .license(new License()
                                 .name("MIT License")
                                 .url("https://opensource.org/licenses/MIT"))

@@ -1,7 +1,9 @@
 package br.gov.mt.seplag.service;
 
+import br.gov.mt.seplag.dto.RegionalRequest;
 import br.gov.mt.seplag.dto.RegionalResponse;
 import br.gov.mt.seplag.entity.Regional;
+import br.gov.mt.seplag.exception.ResourceNotFoundException;
 import br.gov.mt.seplag.repository.RegionalRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,14 +59,101 @@ public class RegionalService {
 
     public RegionalResponse findById(Integer id) {
         Regional regional = regionalRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Regional não encontrada com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Regional não encontrada com ID: " + id));
 
         return toResponse(regional);
     }
 
     @Transactional
-    public SyncResult synchronize() {
-        log.info("Iniciando sincronização com API externa: {}", API_URL);
+    public RegionalResponse insert(RegionalRequest request, String username) {
+        log.info("Criando nova regional: {} por {}", request.getNome(), username);
+
+        if (request.getId() != null && regionalRepository.existsById(request.getId())) {
+            throw new RuntimeException("Já existe uma regional com ID: " + request.getId());
+        }
+
+        Regional regional = Regional.builder()
+                .id(request.getId())
+                .nome(request.getNome())
+                .ativo(request.getAtivo() != null ? request.getAtivo() : true)
+                .build();
+
+        Regional saved = regionalRepository.save(regional);
+
+        log.info("Regional criada com sucesso: ID={}, Nome={}", saved.getId(), saved.getNome());
+
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public RegionalResponse update(Integer id, RegionalRequest request, String username) {
+        log.info("Atualizando regional ID={} por {}", id, username);
+
+        Regional regional = regionalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Regional não encontrada com ID: " + id));
+
+        String nomeAntigo = regional.getNome();
+        Boolean ativoAntigo = regional.getAtivo();
+
+        regional.setNome(request.getNome());
+
+        if (request.getAtivo() != null) {
+            regional.setAtivo(request.getAtivo());
+        }
+
+        Regional updated = regionalRepository.save(regional);
+
+        log.info("Regional atualizada: ID={}, Nome: {} -> {}, Ativo: {} -> {}",
+                id, nomeAntigo, updated.getNome(), ativoAntigo, updated.getAtivo());
+
+        return toResponse(updated);
+    }
+
+    @Transactional
+    public void delete(Integer id, String username) {
+        log.info("Deletando regional ID={} por {}", id, username);
+
+        Regional regional = regionalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Regional não encontrada com ID: " + id));
+
+        regionalRepository.delete(regional);
+
+        log.info("Regional deletada: ID={}, Nome={}", id, regional.getNome());
+    }
+
+    @Transactional
+    public RegionalResponse inactivate(Integer id, String username) {
+        log.info("Inativando regional ID={} por {}", id, username);
+
+        Regional regional = regionalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Regional não encontrada com ID: " + id));
+
+        regional.setAtivo(false);
+        Regional updated = regionalRepository.save(regional);
+
+        log.info("Regional inativada: ID={}, Nome={}", id, regional.getNome());
+
+        return toResponse(updated);
+    }
+
+    @Transactional
+    public RegionalResponse activate(Integer id, String username) {
+        log.info("Reativando regional ID={} por {}", id, username);
+
+        Regional regional = regionalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Regional não encontrada com ID: " + id));
+
+        regional.setAtivo(true);
+        Regional updated = regionalRepository.save(regional);
+
+        log.info("Regional reativada: ID={}, Nome={}", id, regional.getNome());
+
+        return toResponse(updated);
+    }
+
+    @Transactional
+    public SyncResult synchronize(String username) {
+        log.info("Iniciando sincronização com API externa: {} por {}", API_URL, username);
 
         try {
             String jsonResponse = webClient
@@ -132,21 +221,13 @@ public class RegionalService {
                     log.info("Nova regional inserida: ID={}, Nome={}", id, nome);
 
                 } else if (!existing.getNome().equals(nome)) {
-                    existing.setAtivo(false);
+                    existing.setNome(nome);
+                    existing.setAtivo(true);
                     regionalRepository.save(existing);
-
-                    Regional novo = Regional.builder()
-                            .id(id)
-                            .nome(nome)
-                            .ativo(true)
-                            .build();
-                    regionalRepository.save(novo);
                     atualizados++;
-                    log.info("Regional com nome alterado: ID={}, NomeAntigo={}, NomeNovo={}",
-                            id, existing.getNome(), nome);
+                    log.info("Regional atualizada: ID={}, Nome={}", id, nome);
 
                 } else if (!existing.getAtivo()) {
-                    // Estava inativa, reativa
                     existing.setAtivo(true);
                     regionalRepository.save(existing);
                     atualizados++;
