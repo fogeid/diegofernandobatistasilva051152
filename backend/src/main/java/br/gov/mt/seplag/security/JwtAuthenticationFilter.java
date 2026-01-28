@@ -5,7 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.lang.NonNull;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,66 +24,58 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+
+        return path.startsWith("/api/v1/auth/")
+                || path.startsWith("/ws/")
+                || path.startsWith("/actuator/")
+                || path.startsWith("/h2-console/")
+                || path.startsWith("/swagger-ui/")
+                || path.startsWith("/v3/api-docs/")
+                || path.equals("/error");
+    }
+
+    @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
     ) throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
+        final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String jwt = authHeader.substring(7).trim();
-
-        if (jwt.isEmpty()) {
-            writeUnauthorized(response, "Invalid token");
-            return;
-        }
+        final String jwt = authHeader.substring(7);
 
         try {
             final String username = jwtService.extractUsername(jwt);
 
-            if (username == null || username.isBlank()) {
-                writeUnauthorized(response, "Invalid token");
-                return;
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                if (jwtService.validateToken(jwt, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
-
-            if (SecurityContextHolder.getContext().getAuthentication() != null) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-            if (!jwtService.validateToken(jwt, userDetails)) {
-                writeUnauthorized(response, "Invalid token");
-                return;
-            }
-
-            var authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails,
-                    null,
-                    userDetails.getAuthorities()
-            );
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
 
             filterChain.doFilter(request, response);
 
-        } catch (Exception e) {
-            writeUnauthorized(response, "Invalid token");
+        } catch (Exception ex) {
+            SecurityContextHolder.clearContext();
+            filterChain.doFilter(request, response);
         }
-    }
-
-    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
-        if (response.isCommitted()) return;
-
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json");
-        response.getWriter().write("{\"error\":\"" + message + "\"}");
     }
 }

@@ -12,13 +12,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AlbumCoverResponse {
-
     private Long id;
     private Long albumId;
     private String fileName;
-
     private String imageUrl;
-
     private String contentType;
     private Long fileSize;
     private LocalDateTime createdAt;

@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { PrivateRoute } from './PrivateRoute';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
-// Lazy loading de páginas
 const Login = lazy(() => import('../pages/Login'));
 const ArtistsList = lazy(() => import('../pages/Artists/ArtistsList'));
 const ArtistDetail = lazy(() => import('../pages/Artists/ArtistDetail'));

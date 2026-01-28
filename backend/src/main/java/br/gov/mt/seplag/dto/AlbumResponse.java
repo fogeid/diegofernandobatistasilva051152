@@ -13,16 +13,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AlbumResponse {
-
     private Long id;
     private String title;
     private Integer releaseYear;
-
-
     private List<ArtistResponse> artists;
-
     private List<AlbumCoverResponse> covers;
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

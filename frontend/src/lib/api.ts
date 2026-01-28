@@ -2,7 +2,9 @@ import axios from 'axios';
 import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { authStore } from '../stores/authStore';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL = import.meta.env.DEV
+    ? (import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1')
+    : '/api/v1';
 
 export const api = axios.create({
     baseURL: API_BASE_URL,
@@ -22,19 +24,20 @@ api.interceptors.request.use(
 
         return config;
     },
-    (error: AxiosError) => {
-        return Promise.reject(error);
-    }
+    (error: AxiosError) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
-    (response: AxiosResponse) => {
-        return response;
-    },
+    (response: AxiosResponse) => response,
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         if (error.response?.status === 401 && !originalRequest._retry) {
+            const url = (originalRequest.url || '').toString();
+            if (url.includes('/auth/login') || url.includes('/auth/refresh')) {
+                return Promise.reject(error);
+            }
+
             originalRequest._retry = true;
 
             try {
@@ -78,9 +81,7 @@ export const getErrorMessage = (error: unknown): string => {
         return apiError?.message || error.message || 'Erro ao processar requisição';
     }
 
-    if (error instanceof Error) {
-        return error.message;
-    }
+    if (error instanceof Error) return error.message;
 
     return 'Erro desconhecido';
 };

@@ -5,7 +5,6 @@ import br.gov.mt.seplag.dto.LoginResponse;
 import br.gov.mt.seplag.dto.RefreshTokenRequest;
 import br.gov.mt.seplag.entity.User;
 import br.gov.mt.seplag.service.AuthService;
-import io.swagger.v3.oas.annotations.OpenAPI31;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -13,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -22,6 +23,14 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @GetMapping("/health")
+    @Operation(summary = "Health", description = "Healthcheck simples da API de autenticação")
+    public ResponseEntity<Map<String, Object>> health() {
+        return ResponseEntity.ok(Map.of(
+                "status", "UP"
+        ));
+    }
+
     @PostMapping("/login")
     @Operation(summary = "Login", description = "Autentica usuário e retorna tokens JWT")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -29,7 +38,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping( "/register")
+    @PostMapping("/register")
     @Operation(summary = "Register", description = "Registra um usuario novo para autencicação")
     public ResponseEntity<User> registerUser(@Valid @RequestBody LoginRequest request) {
         User user = authService.registerUser(request.getUsername(), request.getPassword());

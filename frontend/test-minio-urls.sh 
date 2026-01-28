@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# test-minio-urls.sh - Testar URLs do MinIO
+
+echo "🔍 Testando URLs do MinIO..."
+echo ""
+
+# Testar MinIO
+echo "1. Testando MinIO API (http://localhost:9000)"
+curl -s -o /dev/null -w "Status: %{http_code}\n" http://localhost:9000/minio/health/live
+
+echo ""
+echo "2. Testando MinIO Console (http://localhost:9001)"
+curl -s -o /dev/null -w "Status: %{http_code}\n" http://localhost:9001
+
+echo ""
+echo "3. Listando álbuns da API"
+curl -s http://localhost:8080/api/v1/albums | jq '.[] | {id, title, covers: .covers | length}'
+
+echo ""
+echo "4. Exemplo de URL de capa (se houver):"
+curl -s http://localhost:8080/api/v1/albums | jq '.[] | select(.covers | length > 0) | .covers[0].fileUrl' | head -1
+
+echo ""
+echo "✅ Teste concluído!"

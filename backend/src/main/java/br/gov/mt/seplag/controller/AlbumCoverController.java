@@ -33,11 +33,12 @@ public class AlbumCoverController {
     }
 
     @GetMapping("/{coverId}")
-    @Operation(summary = "Buscar capa", description = "Busca capa por ID")
+    @Operation(summary = "Buscar capa", description = "Busca capa por ID (validando se pertence ao álbum)")
     public ResponseEntity<AlbumCoverResponse> findById(
             @PathVariable Long albumId,
             @PathVariable Long coverId) {
-        AlbumCoverResponse cover = albumCoverService.findById(coverId);
+
+        AlbumCoverResponse cover = albumCoverService.findById(albumId, coverId);
         return ResponseEntity.ok(cover);
     }
 
@@ -57,11 +58,12 @@ public class AlbumCoverController {
     }
 
     @DeleteMapping("/{coverId}")
-    @Operation(summary = "Deletar capa", description = "Remove uma capa do álbum")
+    @Operation(summary = "Deletar capa", description = "Remove uma capa do álbum (validando se pertence ao álbum)")
     public ResponseEntity<Void> delete(
             @PathVariable Long albumId,
             @PathVariable Long coverId) {
-        albumCoverService.delete(coverId);
+
+        albumCoverService.delete(albumId, coverId);
         return ResponseEntity.noContent().build();
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 public class CorsConfig {
@@ -32,35 +33,37 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        if ("*".equals(allowedOrigins)) {
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toList());
+
+        if (origins.size() == 1 && "*".equals(origins.get(0))) {
             configuration.setAllowedOriginPatterns(List.of("*"));
         } else {
-            List<String> origins = Arrays.asList(allowedOrigins.split(","));
             configuration.setAllowedOrigins(origins);
-            configuration.setAllowedOriginPatterns(List.of("*"));
         }
 
-        List<String> methods = Arrays.asList(allowedMethods.split(","));
-        configuration.setAllowedMethods(methods);
+        configuration.setAllowedMethods(Arrays.stream(allowedMethods.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList()));
 
-        if ("*".equals(allowedHeaders)) {
+        if ("*".equals(allowedHeaders.trim())) {
             configuration.addAllowedHeader("*");
         } else {
-            List<String> headers = Arrays.asList(allowedHeaders.split(","));
-            configuration.setAllowedHeaders(headers);
+            configuration.setAllowedHeaders(Arrays.stream(allowedHeaders.split(","))
+                    .map(String::trim)
+                    .collect(Collectors.toList()));
         }
 
         configuration.setAllowCredentials(allowCredentials);
+
         configuration.setMaxAge(maxAge);
 
-        configuration.setExposedHeaders(Arrays.asList(
-                "Authorization",
-                "X-Rate-Limit-Remaining"
-        ));
+        configuration.setExposedHeaders(List.of("Authorization", "X-Rate-Limit-Remaining"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 }

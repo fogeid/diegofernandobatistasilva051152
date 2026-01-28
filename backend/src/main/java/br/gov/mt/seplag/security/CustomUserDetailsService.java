@@ -27,8 +27,6 @@ public class CustomUserDetailsService implements UserDetailsService {
                 });
 
         log.debug("Usuário encontrado: {}", username);
-        log.debug("Password hash: {}", user.getPassword());
-
         return user;
     }
 }

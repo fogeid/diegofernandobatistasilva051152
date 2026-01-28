@@ -1,4 +1,5 @@
-import { Client, IMessage } from '@stomp/stompjs';
+import { Client } from '@stomp/stompjs';
+import type { IMessage } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import toast from 'react-hot-toast';
 
@@ -16,27 +17,26 @@ class WebSocketService {
     private maxReconnectAttempts = 5;
     private reconnectDelay = 3000;
 
-    constructor() {
-        this.client = null;
-    }
-
     connect() {
         if (this.connected) {
             console.log('WebSocket já está conectado');
             return;
         }
+        if (this.client && this.client.active) {
+            console.log('WebSocket já está ativo (client.active=true)');
+            return;
+        }
 
-        const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
+        const wsUrl = import.meta.env.DEV
+            ? (import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws')
+            : '/ws';
 
         this.client = new Client({
             webSocketFactory: () => new SockJS(wsUrl) as any,
-
             connectHeaders: {},
 
             debug: (str) => {
-                if (import.meta.env.DEV) {
-                    console.log('STOMP:', str);
-                }
+                if (import.meta.env.DEV) console.log('STOMP:', str);
             },
 
             reconnectDelay: this.reconnectDelay,
@@ -57,7 +57,13 @@ class WebSocketService {
 
             onStompError: (frame) => {
                 console.error('❌ Erro STOMP:', frame);
+                this.connected = false;
                 this.handleReconnect();
+            },
+
+            onWebSocketClose: () => {
+                if (this.connected) console.log('❌ WebSocket fechado');
+                this.connected = false;
             },
         });
 
@@ -70,6 +76,7 @@ class WebSocketService {
             console.log(`Tentando reconectar... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
             setTimeout(() => {
+                this.client = null;
                 this.connect();
             }, this.reconnectDelay * this.reconnectAttempts);
         } else {
@@ -81,21 +88,10 @@ class WebSocketService {
     private subscribeToTopics() {
         if (!this.client) return;
 
-        this.client.subscribe('/topic/albums', (message: IMessage) => {
-            this.handleNotification(message);
-        });
-
-        this.client.subscribe('/topic/artists', (message: IMessage) => {
-            this.handleNotification(message);
-        });
-
-        this.client.subscribe('/topic/covers', (message: IMessage) => {
-            this.handleNotification(message);
-        });
-
-        this.client.subscribe('/topic/regionais', (message: IMessage) => {
-            this.handleNotification(message);
-        });
+        this.client.subscribe('/topic/albums', (message: IMessage) => this.handleNotification(message));
+        this.client.subscribe('/topic/artists', (message: IMessage) => this.handleNotification(message));
+        this.client.subscribe('/topic/covers', (message: IMessage) => this.handleNotification(message));
+        this.client.subscribe('/topic/regionais', (message: IMessage) => this.handleNotification(message));
 
         console.log('✅ Inscrito em todos os tópicos');
     }
@@ -103,14 +99,10 @@ class WebSocketService {
     private handleNotification(message: IMessage) {
         try {
             const notification: NotificationMessage = JSON.parse(message.body);
-
             console.log('📬 Notificação recebida:', notification);
-
             this.showToast(notification);
 
-            const event = new CustomEvent('websocket-notification', {
-                detail: notification,
-            });
+            const event = new CustomEvent('websocket-notification', { detail: notification });
             window.dispatchEvent(event);
         } catch (error) {
             console.error('Erro ao processar notificação:', error);
@@ -124,27 +116,21 @@ class WebSocketService {
             case 'ALBUM_CREATED':
                 toast.success(`🎵 ${message}`, { duration: 5000 });
                 break;
-
             case 'ALBUM_UPDATED':
                 toast.success(`✏️ ${message}`, { duration: 4000 });
                 break;
-
             case 'ALBUM_DELETED':
                 toast.error(`🗑️ ${message}`, { duration: 4000 });
                 break;
-
             case 'ARTIST_CREATED':
                 toast.success(`🎤 ${message}`, { duration: 5000 });
                 break;
-
             case 'COVER_UPLOADED':
                 toast.success(`🖼️ ${message}`, { duration: 4000 });
                 break;
-
             case 'REGIONAIS_SYNCED':
                 toast.success(`🗺️ ${message}`, { duration: 4000 });
                 break;
-
             default:
                 toast(`📬 ${message}`, { duration: 4000 });
         }
@@ -154,6 +140,7 @@ class WebSocketService {
         if (this.client) {
             this.client.deactivate();
             this.connected = false;
+            this.client = null;
             console.log('WebSocket desconectado manualmente');
         }
     }

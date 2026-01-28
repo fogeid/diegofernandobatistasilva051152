@@ -7,20 +7,24 @@ import br.gov.mt.seplag.exception.BadRequestException;
 import br.gov.mt.seplag.exception.ResourceNotFoundException;
 import br.gov.mt.seplag.repository.AlbumCoverRepository;
 import br.gov.mt.seplag.repository.AlbumRepository;
-import io.minio.*;
+import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.MinioClient;
+import io.minio.ObjectWriteResponse;
+import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +47,10 @@ class AlbumCoverServiceTest {
     private NotificationService notificationService;
 
     @Mock
-    private MinioClient minioClient;
+    private MinioClient minioInternalClient;
+
+    @Mock
+    private MinioClient minioPublicClient;
 
     @InjectMocks
     private AlbumCoverService service;
@@ -73,7 +80,7 @@ class AlbumCoverServiceTest {
     }
 
     private void mockPresignedUrl(String url) throws Exception {
-        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+        when(minioPublicClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
                 .thenReturn(url);
     }
 
@@ -82,6 +89,7 @@ class AlbumCoverServiceTest {
     void findByAlbumId_shouldReturnResponses() throws Exception {
         mockPresignedUrl("http://signed-url");
 
+        when(albumRepository.findById(10L)).thenReturn(Optional.of(album));
         when(albumCoverRepository.findByAlbumId(10L)).thenReturn(List.of(cover));
 
         List<AlbumCoverResponse> result = service.findByAlbumId(10L);
@@ -92,22 +100,77 @@ class AlbumCoverServiceTest {
         assertThat(result.get(0).getFileName()).isEqualTo("cover.jpg");
         assertThat(result.get(0).getImageUrl()).isEqualTo("http://signed-url");
 
+        verify(albumRepository).findById(10L);
         verify(albumCoverRepository).findByAlbumId(10L);
-        verify(minioClient).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
+        verify(minioPublicClient).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
+        verifyNoInteractions(minioInternalClient);
     }
 
     @Test
-    @DisplayName("findById deve retornar response quando existir")
+    @DisplayName("findByAlbumId deve lançar ResourceNotFound quando álbum não existir")
+    void findByAlbumId_shouldThrowWhenAlbumNotFound() {
+        when(albumRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.findByAlbumId(10L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Álbum não encontrado");
+
+        verify(albumRepository).findById(10L);
+        verify(albumCoverRepository, never()).findByAlbumId(anyLong());
+        verifyNoInteractions(minioPublicClient);
+        verifyNoInteractions(minioInternalClient);
+    }
+
+    @Test
+    @DisplayName("findById (id) deve retornar response quando existir")
     void findById_shouldReturnResponse() throws Exception {
         mockPresignedUrl("http://signed-url");
 
         when(albumCoverRepository.findById(1L)).thenReturn(Optional.of(cover));
 
-        AlbumCoverResponse result = service.findById(1L);
+        AlbumCoverResponse result = service.findById(1L, 1L);
 
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getImageUrl()).isEqualTo("http://signed-url");
+
         verify(albumCoverRepository).findById(1L);
+        verify(minioPublicClient).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
+        verifyNoInteractions(minioInternalClient);
+    }
+
+    @Test
+    @DisplayName("findById (albumId, coverId) deve retornar response quando capa pertence ao álbum")
+    void findById_albumCover_shouldReturnResponse() throws Exception {
+        mockPresignedUrl("http://signed-url");
+
+        when(albumCoverRepository.findById(1L)).thenReturn(Optional.of(cover));
+
+        AlbumCoverResponse result = service.findById(10L, 1L);
+
+        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getAlbumId()).isEqualTo(10L);
+        assertThat(result.getImageUrl()).isEqualTo("http://signed-url");
+
+        verify(albumCoverRepository).findById(1L);
+        verify(minioPublicClient).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
+        verifyNoInteractions(minioInternalClient);
+    }
+
+    @Test
+    @DisplayName("findById (albumId, coverId) deve lançar BadRequest se capa não pertence ao álbum")
+    void findById_albumCover_shouldThrowWhenNotBelongsToAlbum() {
+        Album otherAlbum = Album.builder().id(999L).title("Other").build();
+        AlbumCover otherCover = AlbumCover.builder().id(1L).album(otherAlbum).minioKey("k").build();
+
+        when(albumCoverRepository.findById(1L)).thenReturn(Optional.of(otherCover));
+
+        assertThatThrownBy(() -> service.findById(10L, 1L))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("não pertence ao álbum");
+
+        verify(albumCoverRepository).findById(1L);
+        verifyNoInteractions(minioPublicClient);
+        verifyNoInteractions(minioInternalClient);
     }
 
     @Test
@@ -115,12 +178,13 @@ class AlbumCoverServiceTest {
     void findById_shouldThrowWhenNotFound() {
         when(albumCoverRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.findById(1L))
+        assertThatThrownBy(() -> service.findById(1L, 1L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Capa não encontrada");
 
         verify(albumCoverRepository).findById(1L);
-        verifyNoInteractions(minioClient);
+        verifyNoInteractions(minioPublicClient);
+        verifyNoInteractions(minioInternalClient);
     }
 
     @Test
@@ -137,9 +201,8 @@ class AlbumCoverServiceTest {
 
         when(albumRepository.findById(10L)).thenReturn(Optional.of(album));
 
-        when(minioClient.putObject(any(PutObjectArgs.class)))
+        when(minioInternalClient.putObject(any(PutObjectArgs.class)))
                 .thenReturn(mock(ObjectWriteResponse.class));
-
 
         when(albumCoverRepository.save(any(AlbumCover.class))).thenAnswer(inv -> {
             AlbumCover c = inv.getArgument(0);
@@ -159,10 +222,10 @@ class AlbumCoverServiceTest {
         assertThat(response.getFileSize()).isEqualTo(file.getSize());
 
         verify(albumRepository).findById(10L);
-        verify(minioClient).putObject(any(PutObjectArgs.class));
+        verify(minioInternalClient).putObject(any(PutObjectArgs.class));
         verify(albumCoverRepository).save(any(AlbumCover.class));
         verify(notificationService).notifyCoverUploaded(10L, "Hybrid Theory", "diego");
-        verify(minioClient).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
+        verify(minioPublicClient).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
     }
 
     @Test
@@ -179,7 +242,8 @@ class AlbumCoverServiceTest {
                 .hasMessageContaining("Álbum não encontrado");
 
         verify(albumRepository).findById(10L);
-        verifyNoInteractions(minioClient);
+        verifyNoInteractions(minioInternalClient);
+        verifyNoInteractions(minioPublicClient);
         verify(albumCoverRepository, never()).save(any());
         verifyNoInteractions(notificationService);
     }
@@ -192,15 +256,16 @@ class AlbumCoverServiceTest {
         );
 
         when(albumRepository.findById(10L)).thenReturn(Optional.of(album));
-        doThrow(new RuntimeException("minio down")).when(minioClient).putObject(any(PutObjectArgs.class));
+        doThrow(new RuntimeException("minio down")).when(minioInternalClient).putObject(any(PutObjectArgs.class));
 
         assertThatThrownBy(() -> service.uploadCover(10L, file, "diego"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Erro ao fazer upload da imagem");
 
-        verify(minioClient).putObject(any(PutObjectArgs.class));
+        verify(minioInternalClient).putObject(any(PutObjectArgs.class));
         verify(albumCoverRepository, never()).save(any());
         verifyNoInteractions(notificationService);
+        verifyNoInteractions(minioPublicClient);
     }
 
     @Nested
@@ -219,7 +284,8 @@ class AlbumCoverServiceTest {
                     .isInstanceOf(BadRequestException.class)
                     .hasMessageContaining("Arquivo não pode ser vazio");
 
-            verifyNoInteractions(minioClient);
+            verifyNoInteractions(minioInternalClient);
+            verifyNoInteractions(minioPublicClient);
         }
 
         @Test
@@ -231,7 +297,8 @@ class AlbumCoverServiceTest {
                     .isInstanceOf(BadRequestException.class)
                     .hasMessageContaining("Arquivo não pode ser vazio");
 
-            verifyNoInteractions(minioClient);
+            verifyNoInteractions(minioInternalClient);
+            verifyNoInteractions(minioPublicClient);
         }
 
         @Test
@@ -243,7 +310,8 @@ class AlbumCoverServiceTest {
                     .isInstanceOf(BadRequestException.class)
                     .hasMessageContaining("Arquivo deve ser uma imagem");
 
-            verifyNoInteractions(minioClient);
+            verifyNoInteractions(minioInternalClient);
+            verifyNoInteractions(minioPublicClient);
         }
 
         @Test
@@ -255,7 +323,8 @@ class AlbumCoverServiceTest {
                     .isInstanceOf(BadRequestException.class)
                     .hasMessageContaining("Formato de imagem não suportado");
 
-            verifyNoInteractions(minioClient);
+            verifyNoInteractions(minioInternalClient);
+            verifyNoInteractions(minioPublicClient);
         }
 
         @Test
@@ -267,68 +336,89 @@ class AlbumCoverServiceTest {
                     .isInstanceOf(BadRequestException.class)
                     .hasMessageContaining("Formato de imagem não suportado");
 
-            verifyNoInteractions(minioClient);
+            verifyNoInteractions(minioInternalClient);
+            verifyNoInteractions(minioPublicClient);
         }
 
         @Test
         @DisplayName("Deve lançar BadRequest se tamanho for maior que 10MB")
         void shouldThrowIfTooLarge() {
             MultipartFile bigFile = mock(MultipartFile.class);
-            try {
-                when(bigFile.isEmpty()).thenReturn(false);
-                when(bigFile.getContentType()).thenReturn("image/jpeg");
-                when(bigFile.getOriginalFilename()).thenReturn("cover.jpg");
-                when(bigFile.getSize()).thenReturn(10L * 1024 * 1024 + 1); // > 10MB
-            } catch (Exception ignored) {}
+            when(bigFile.isEmpty()).thenReturn(false);
+            when(bigFile.getContentType()).thenReturn("image/jpeg");
+            when(bigFile.getOriginalFilename()).thenReturn("cover.jpg");
+            when(bigFile.getSize()).thenReturn(10L * 1024 * 1024 + 1); // > 10MB
 
             assertThatThrownBy(() -> service.uploadCover(10L, bigFile, "diego"))
                     .isInstanceOf(BadRequestException.class)
                     .hasMessageContaining("Imagem muito grande");
 
-            verifyNoInteractions(minioClient);
+            verifyNoInteractions(minioInternalClient);
+            verifyNoInteractions(minioPublicClient);
         }
     }
 
     @Test
-    @DisplayName("delete deve remover do MinIO e deletar do banco")
-    void delete_shouldRemoveAndDelete() throws Exception {
+    @DisplayName("delete(albumId, coverId) deve remover do MinIO e deletar do banco quando pertencer ao álbum")
+    void delete_albumCover_shouldRemoveAndDelete() throws Exception {
         when(albumCoverRepository.findById(1L)).thenReturn(Optional.of(cover));
-        doNothing().when(minioClient).removeObject(any(RemoveObjectArgs.class));
+        doNothing().when(minioInternalClient).removeObject(any(RemoveObjectArgs.class));
         doNothing().when(albumCoverRepository).delete(cover);
 
-        service.delete(1L);
+        service.delete(10L, 1L);
 
         verify(albumCoverRepository).findById(1L);
-        verify(minioClient).removeObject(any(RemoveObjectArgs.class));
+        verify(minioInternalClient).removeObject(any(RemoveObjectArgs.class));
         verify(albumCoverRepository).delete(cover);
+        verifyNoInteractions(minioPublicClient);
     }
 
     @Test
-    @DisplayName("delete deve lançar ResourceNotFound se não existir")
-    void delete_shouldThrowWhenNotFound() {
+    @DisplayName("delete(albumId, coverId) deve lançar BadRequest se não pertencer ao álbum")
+    void delete_albumCover_shouldThrowWhenNotBelongsToAlbum() {
+        Album otherAlbum = Album.builder().id(999L).title("Other").build();
+        AlbumCover otherCover = AlbumCover.builder().id(1L).album(otherAlbum).minioKey("k").build();
+
+        when(albumCoverRepository.findById(1L)).thenReturn(Optional.of(otherCover));
+
+        assertThatThrownBy(() -> service.delete(10L, 1L))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("não pertence ao álbum");
+
+        verify(albumCoverRepository).findById(1L);
+        verifyNoInteractions(minioInternalClient);
+        verifyNoInteractions(minioPublicClient);
+        verify(albumCoverRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("delete(albumId, coverId) deve lançar ResourceNotFound se não existir")
+    void delete_albumCover_shouldThrowWhenNotFound() {
         when(albumCoverRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.delete(1L))
+        assertThatThrownBy(() -> service.delete(10L, 1L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Capa não encontrada");
 
         verify(albumCoverRepository).findById(1L);
-        verifyNoInteractions(minioClient);
+        verifyNoInteractions(minioInternalClient);
+        verifyNoInteractions(minioPublicClient);
     }
 
     @Test
-    @DisplayName("delete deve lançar RuntimeException se MinIO falhar")
-    void delete_shouldThrowWhenMinioFails() throws Exception {
+    @DisplayName("delete(albumId, coverId) deve lançar RuntimeException se MinIO falhar")
+    void delete_albumCover_shouldThrowWhenMinioFails() throws Exception {
         when(albumCoverRepository.findById(1L)).thenReturn(Optional.of(cover));
-        doThrow(new RuntimeException("minio fail")).when(minioClient).removeObject(any(RemoveObjectArgs.class));
+        doThrow(new RuntimeException("minio fail")).when(minioInternalClient).removeObject(any(RemoveObjectArgs.class));
 
-        assertThatThrownBy(() -> service.delete(1L))
+        assertThatThrownBy(() -> service.delete(10L, 1L))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Erro ao deletar imagem");
 
         verify(albumCoverRepository).findById(1L);
-        verify(minioClient).removeObject(any(RemoveObjectArgs.class));
+        verify(minioInternalClient).removeObject(any(RemoveObjectArgs.class));
         verify(albumCoverRepository, never()).delete(any());
+        verifyNoInteractions(minioPublicClient);
     }
 
     @Test
@@ -338,29 +428,30 @@ class AlbumCoverServiceTest {
         AlbumCover c2 = AlbumCover.builder().id(2L).album(album).minioKey("k2").build();
 
         when(albumCoverRepository.findByAlbumId(10L)).thenReturn(List.of(c1, c2));
+        doNothing().when(minioInternalClient).removeObject(any(RemoveObjectArgs.class));
 
-        AlbumCoverService spy = Mockito.spy(service);
-        doNothing().when(spy).delete(anyLong());
-
-        spy.deleteByAlbumId(10L);
+        service.deleteByAlbumId(10L);
 
         verify(albumCoverRepository).findByAlbumId(10L);
-        verify(spy).delete(1L);
-        verify(spy).delete(2L);
+        verify(minioInternalClient, times(2)).removeObject(any(RemoveObjectArgs.class));
+        verify(albumCoverRepository, times(2)).delete(any(AlbumCover.class));
+        verifyNoInteractions(minioPublicClient);
     }
 
     @Test
     @DisplayName("toResponse deve lançar RuntimeException se falhar ao gerar URL")
     void toResponse_shouldThrowIfPresignedUrlFails() throws Exception {
-        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+        when(minioPublicClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
                 .thenThrow(new RuntimeException("boom"));
 
         when(albumCoverRepository.findById(1L)).thenReturn(Optional.of(cover));
 
-        assertThatThrownBy(() -> service.findById(1L))
+        assertThatThrownBy(() -> service.findById(1L, 1L))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Erro ao gerar URL de download");
+                .hasMessageContaining("Erro ao gerar URL de acesso à imagem");
 
         verify(albumCoverRepository).findById(1L);
+        verify(minioPublicClient).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
+        verifyNoInteractions(minioInternalClient);
     }
 }

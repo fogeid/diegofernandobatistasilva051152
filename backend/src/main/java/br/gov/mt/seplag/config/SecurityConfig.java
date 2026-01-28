@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -19,6 +20,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -28,11 +30,12 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserDetailsService userDetailsService;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> {})
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
 
                 .exceptionHandling(ex -> ex
@@ -44,15 +47,23 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+
+                        .requestMatchers("/v1/auth/**").permitAll()
+
                         .requestMatchers(
-                                "/api/v1/auth/**",
                                 "/ws/**",
+                                "/albums/**",
+                                "/albums/albums/**",
                                 "/actuator/**",
                                 "/h2-console/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/error"
                         ).permitAll()
+
                         .anyRequest().authenticated()
                 )
 
@@ -66,7 +77,6 @@ public class SecurityConfig {
 
         return http.build();
     }
-
 
     @Bean
     public AuthenticationProvider authenticationProvider() {

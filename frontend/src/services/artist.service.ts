@@ -1,10 +1,7 @@
 import api from '../lib/api';
 import type {
-    Artist,
     ArtistRequest,
     ArtistResponse,
-    Page,
-    PageRequest,
     SearchParams,
 } from '../types/api.types';
 

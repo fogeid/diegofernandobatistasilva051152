@@ -28,6 +28,12 @@ export const authStore = create<AuthState>()(
             isAuthenticated: false,
 
             login: (token: string, refreshToken: string) => {
+                if (!token || typeof token !== 'string') {
+                    console.error('Token inválido recebido:', token);
+                    get().logout();
+                    return;
+                }
+
                 try {
                     const decoded = jwtDecode<User>(token);
 
@@ -37,6 +43,8 @@ export const authStore = create<AuthState>()(
                         user: decoded,
                         isAuthenticated: true,
                     });
+
+                    console.log('Login bem-sucedido:', decoded.username);
                 } catch (error) {
                     console.error('Erro ao decodificar token:', error);
                     get().logout();
@@ -50,9 +58,16 @@ export const authStore = create<AuthState>()(
                     user: null,
                     isAuthenticated: false,
                 });
+                console.log('Logout realizado');
             },
 
             setToken: (token: string) => {
+                if (!token || typeof token !== 'string') {
+                    console.error('Token inválido:', token);
+                    get().logout();
+                    return;
+                }
+
                 try {
                     const decoded = jwtDecode<User>(token);
 
@@ -78,7 +93,7 @@ export const authStore = create<AuthState>()(
                 const currentTime = Date.now();
                 const timeUntilExpiration = expirationTime - currentTime;
 
-                return timeUntilExpiration < 60000;
+                return timeUntilExpiration < 60000; // 1 minuto
             },
         }),
         {

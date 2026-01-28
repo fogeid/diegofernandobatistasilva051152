@@ -4,7 +4,8 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-    token: string;
+    tokenType: string;
+    accessToken: string;  // ← API retorna accessToken
     refreshToken: string;
     expiresIn: number;
 }
@@ -65,10 +66,10 @@ export interface AlbumResponse {
 export interface AlbumCover {
     id: number;
     fileName: string;
-    fileUrl: string;
+    imageUrl: string;
     fileSize: number;
     contentType: string;
-    uploadedAt: string;
+    createdAt: string;
 }
 
 export interface AlbumCoverUploadResponse {

@@ -110,6 +110,7 @@ public class AlbumController {
             @PathVariable Long id,
             @Valid @RequestBody AlbumRequest request,
             Authentication authentication) {
+
         AlbumResponse album = albumService.update(id, request, authentication.getName());
         return ResponseEntity.ok(album);
     }

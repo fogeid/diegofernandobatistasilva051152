@@ -1,36 +1,42 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
-    image: fogeid/seplag-api
+    build:
+      context: ./backend
     container_name: backend
-    ports:
-      - "8080:8080"
     environment:
-      # Spring Profile
       SPRING_PROFILES_ACTIVE: prod
-      
-      # Database
+
       SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/musicdb
       SPRING_DATASOURCE_USERNAME: seplag
       SPRING_DATASOURCE_PASSWORD: seplag123
-      
-      # MinIO
-      MINIO_URL: http://minio:9000
+
+      MINIO_INTERNAL_URL: http://minio:9000
+      MINIO_PUBLIC_URL: http://localhost:9000
       MINIO_ACCESS_KEY: seplag
       MINIO_SECRET_KEY: seplag123
       MINIO_BUCKET_NAME: albums
-      
-      # JWT
+
       JWT_SECRET: c2VwbGFnLXN1cGVyLXNlY3JldC1rZXktZm9yLWp3dC1zaWduaW5nLTI1Ni1iaXRzLW1pbmltdW0=
-      
-      # Timezone
       TZ: America/Cuiaba
-    networks:
-      - seplag-network
     depends_on:
       - database
       - minio
+      - minio-init
+    networks:
+      - seplag-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - seplag-network
 
   database:
     image: postgres:16
@@ -60,6 +66,26 @@ services:
       - seplag-network
     volumes:
       - minio_data:/data
+
+  minio-init:
+    image: minio/mc
+    container_name: minio-init
+    depends_on:
+      - minio
+    networks:
+      - seplag-network
+    entrypoint: >
+      /bin/sh -c "
+      until (mc alias set local http://minio:9000 seplag seplag123) do
+        echo 'Aguardando MinIO...';
+        sleep 2;
+      done;
+
+      mc mb -p local/albums || true;
+      mc anonymous set download local/albums || true;
+
+      echo '✅ Bucket albums pronto e público (download)';
+      "
 
 networks:
   seplag-network:
