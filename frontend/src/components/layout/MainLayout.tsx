@@ -20,9 +20,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
     return (
         <div className="h-screen flex bg-black">
-            {/* Sidebar */}
             <aside className="w-64 bg-black flex flex-col sidebar-animate">
-                {/* Logo */}
                 <div className="p-6">
                     <Link to="/" className="flex items-center space-x-2 group">
                         <Music className="h-8 w-8 text-[#1DB954]" />
@@ -32,7 +30,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </Link>
                 </div>
 
-                {/* Navigation */}
                 <nav className="flex-1 px-3 space-y-2">
                     <Link
                         to="/artists"
@@ -55,7 +52,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </button>
                 </nav>
 
-                {/* User Section */}
                 <div className="p-4 border-t border-[#282828]">
                     <div className="flex items-center justify-between px-4 py-3 rounded-md bg-[#181818] hover:bg-[#282828] transition-all">
                         <div className="flex items-center space-x-3">
@@ -77,9 +73,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </div>
             </aside>
 
-            {/* Main Content */}
             <main className="flex-1 flex flex-col overflow-hidden">
-                {/* Top Bar */}
                 <header className="h-16 bg-gradient-to-b from-[#121212] to-transparent flex items-center justify-between px-8 backdrop-blur-sm">
                     <div className="flex items-center space-x-4">
                         <button
@@ -97,7 +91,6 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </div>
                 </header>
 
-                {/* Content Area */}
                 <div className="flex-1 overflow-y-auto bg-gradient-to-b from-[#121212] to-black px-8 pb-8">
                     <div className="max-w-[1955px] mx-auto animate-fade-in">
                         {children}

@@ -1,6 +1,16 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Edit, Trash2, Plus, Music2, Users, Calendar, Play, MoreVertical } from 'lucide-react';
+import {
+    ArrowLeft,
+    Edit,
+    Trash2,
+    Plus,
+    Music2,
+    Users,
+    Calendar,
+    Play,
+    MoreVertical,
+} from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { artistService } from '../../services/artist.service';
@@ -68,9 +78,7 @@ export default function ArtistDetail() {
 
     return (
         <div className="pt-6 space-y-8">
-            {/* Header */}
             <div className="flex items-start gap-8">
-                {/* Artist Image */}
                 <div className="flex-shrink-0">
                     <div className="w-56 h-56 bg-gradient-to-br from-[#1DB954]/20 to-[#282828] rounded-full flex items-center justify-center shadow-2xl">
                         {artist.isBand ? (
@@ -81,21 +89,17 @@ export default function ArtistDetail() {
                     </div>
                 </div>
 
-                {/* Artist Info */}
                 <div className="flex-1 space-y-4">
                     <div>
                         <p className="text-sm text-[#b3b3b3] uppercase font-semibold">
                             {artist.isBand ? 'Banda' : 'Artista'}
                         </p>
-                        <h1 className="text-6xl font-bold text-white mt-2 mb-4">
-                            {artist.name}
-                        </h1>
+                        <h1 className="text-6xl font-bold text-white mt-2 mb-4">{artist.name}</h1>
                         <p className="text-[#b3b3b3]">
                             {artistAlbums.length} {artistAlbums.length === 1 ? 'álbum' : 'álbuns'}
                         </p>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex items-center gap-4 pt-4">
                         <Button
                             onClick={() => navigate(`/artists/${artist.id}/edit`)}
@@ -105,11 +109,7 @@ export default function ArtistDetail() {
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
                         </Button>
-                        <Button
-                            onClick={handleDelete}
-                            variant="destructive"
-                            className="h-10"
-                        >
+                        <Button onClick={handleDelete} variant="destructive" className="h-10">
                             <Trash2 className="mr-2 h-4 w-4" />
                             Deletar
                         </Button>
@@ -123,7 +123,6 @@ export default function ArtistDetail() {
                 </div>
             </div>
 
-            {/* Albums Section */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold text-white">Discografia</h2>
@@ -168,13 +167,11 @@ interface AlbumCardProps {
 
 function AlbumCard({ album, index }: AlbumCardProps) {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const [showMenu, setShowMenu] = useState(false);
     const [imageError, setImageError] = useState(false);
 
-    const coverUrl =
-        album.covers && album.covers.length > 0
-            ? album.covers[0].imageUrl
-            : null;
+    const coverUrl = album.covers && album.covers.length > 0 ? album.covers[0].imageUrl : null;
 
     const deleteMutation = useMutation({
         mutationFn: () => albumService.delete(album.id),
@@ -188,13 +185,8 @@ function AlbumCard({ album, index }: AlbumCardProps) {
     });
 
     const handleDelete = async () => {
-        const confirmed = window.confirm(
-            `Tem certeza que deseja deletar o álbum "${album.title}"?`
-        );
-
-        if (confirmed) {
-            deleteMutation.mutate();
-        }
+        const confirmed = window.confirm(`Tem certeza que deseja deletar o álbum "${album.title}"?`);
+        if (confirmed) deleteMutation.mutate();
     };
 
     const handleImageError = () => {
@@ -206,7 +198,6 @@ function AlbumCard({ album, index }: AlbumCardProps) {
         console.log('Imagem carregada com sucesso:', coverUrl);
     };
 
-    // Debug: mostrar URL no console
     console.log('Album:', album.title, 'Cover URL:', coverUrl);
 
     return (
@@ -214,7 +205,6 @@ function AlbumCard({ album, index }: AlbumCardProps) {
             className="group relative p-4 bg-[#181818] rounded-lg spotify-card animate-fade-in"
             style={{ animationDelay: `${index * 50}ms` }}
         >
-            {/* Menu Actions */}
             <div className="absolute top-4 right-4 z-10">
                 <button
                     onClick={(e) => {
@@ -229,10 +219,10 @@ function AlbumCard({ album, index }: AlbumCardProps) {
                 {showMenu && (
                     <div className="absolute top-10 right-0 bg-[#282828] rounded-md shadow-xl min-w-[150px] py-1">
                         <button
+                            type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                // TODO: Implementar edição de álbum
-                                toast('Edição de álbum em breve!');
+                                navigate(`/albums/${album.id}/edit`);
                                 setShowMenu(false);
                             }}
                             className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#3e3e3e] transition-colors flex items-center gap-2"
@@ -240,6 +230,7 @@ function AlbumCard({ album, index }: AlbumCardProps) {
                             <Edit className="h-4 w-4" />
                             Editar
                         </button>
+
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -255,7 +246,6 @@ function AlbumCard({ album, index }: AlbumCardProps) {
                 )}
             </div>
 
-            {/* Album Cover */}
             <div className="relative mb-4 aspect-square cursor-pointer">
                 {coverUrl && !imageError ? (
                     <img
@@ -272,30 +262,25 @@ function AlbumCard({ album, index }: AlbumCardProps) {
                     </div>
                 )}
 
-                {/* Play Button */}
                 <button className="play-button absolute right-2 bottom-2 w-12 h-12 bg-[#1DB954] rounded-full flex items-center justify-center shadow-xl hover:scale-110 hover:bg-[#1ed760] transition-all">
                     <Play className="h-5 w-5 text-black fill-black ml-0.5" />
                 </button>
             </div>
 
-            {/* Album Info */}
             <div className="space-y-1">
-                <h3 className="text-white font-bold truncate group-hover:underline">
-                    {album.title}
-                </h3>
+                <h3 className="text-white font-bold truncate group-hover:underline">{album.title}</h3>
+
                 <div className="flex items-center gap-2 text-sm text-[#b3b3b3]">
                     <Calendar className="h-3 w-3" />
                     <span>{album.releaseYear}</span>
                 </div>
 
-                {/* Artists */}
                 {album.artists.length > 0 && (
                     <p className="text-sm text-[#b3b3b3] truncate">
-                        {album.artists.map(a => a.name).join(', ')}
+                        {album.artists.map((a) => a.name).join(', ')}
                     </p>
                 )}
 
-                {/* Covers count */}
                 {album.covers && album.covers.length > 0 && (
                     <p className="text-xs text-[#535353]">
                         {album.covers.length} {album.covers.length === 1 ? 'capa' : 'capas'}

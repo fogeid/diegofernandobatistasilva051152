@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/Card';
-import { LoadingPage } from '../../components/common/LoadingSpinner';
+import { LoadingPage, LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { getErrorMessage } from '../../lib/api';
 
 const albumSchema = z.object({
@@ -30,6 +30,10 @@ export default function AlbumForm() {
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
+    const { id } = useParams<{ id: string }>();
+
+    const albumId = useMemo(() => (id ? Number(id) : null), [id]);
+    const isEditMode = !!albumId;
 
     const preSelectedArtistId = location.state?.artistId;
 
@@ -44,9 +48,16 @@ export default function AlbumForm() {
         queryFn: artistService.getAll,
     });
 
+    const { data: album, isLoading: loadingAlbum } = useQuery({
+        queryKey: ['album', albumId],
+        queryFn: () => albumService.getById(albumId as number),
+        enabled: isEditMode && !!albumId,
+    });
+
     const {
         register,
         handleSubmit,
+        reset,
         formState: { errors },
     } = useForm<AlbumFormData>({
         resolver: zodResolver(albumSchema),
@@ -57,23 +68,50 @@ export default function AlbumForm() {
         },
     });
 
-    const createAlbumMutation = useMutation({
-        mutationFn: albumService.create,
-        onSuccess: async (album) => {
+    useEffect(() => {
+        if (!album) return;
+
+        const ids = (album.artists || []).map((a) => a.id);
+
+        setSelectedArtists(ids);
+
+        reset({
+            title: album.title,
+            releaseYear: album.releaseYear,
+            artistIds: ids,
+        });
+    }, [album, reset]);
+
+    const saveMutation = useMutation({
+        mutationFn: async (payload: AlbumFormData) => {
+            const data = {
+                ...payload,
+                artistIds: selectedArtists,
+            };
+
+            if (isEditMode) {
+                return albumService.update(albumId as number, data);
+            }
+
+            return albumService.create(data);
+        },
+        onSuccess: async (savedAlbum) => {
             if (coverFiles.length > 0) {
                 try {
                     for (const file of coverFiles) {
-                        await albumService.uploadCover(album.id, file);
+                        await albumService.uploadCover(savedAlbum.id, file);
                     }
-                    toast.success('Álbum criado com capas enviadas!');
+                    toast.success(isEditMode ? 'Álbum atualizado e capas enviadas!' : 'Álbum criado com capas enviadas!');
                 } catch (error) {
-                    toast.error('Álbum criado mas erro ao enviar capas: ' + getErrorMessage(error));
+                    toast.error((isEditMode ? 'Álbum atualizado' : 'Álbum criado') + ' mas erro ao enviar capas: ' + getErrorMessage(error));
                 }
             } else {
-                toast.success('Álbum criado com sucesso!');
+                toast.success(isEditMode ? 'Álbum atualizado com sucesso!' : 'Álbum criado com sucesso!');
             }
 
             queryClient.invalidateQueries({ queryKey: ['albums'] });
+            if (albumId) queryClient.invalidateQueries({ queryKey: ['album', albumId] });
+
             navigate('/artists');
         },
         onError: (error) => {
@@ -83,9 +121,7 @@ export default function AlbumForm() {
 
     const handleArtistToggle = (artistId: number) => {
         setSelectedArtists((prev) =>
-            prev.includes(artistId)
-                ? prev.filter((id) => id !== artistId)
-                : [...prev, artistId]
+            prev.includes(artistId) ? prev.filter((x) => x !== artistId) : [...prev, artistId]
         );
     };
 
@@ -102,9 +138,7 @@ export default function AlbumForm() {
 
         validFiles.forEach((file) => {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setCoverPreviews((prev) => [...prev, reader.result as string]);
-            };
+            reader.onloadend = () => setCoverPreviews((prev) => [...prev, reader.result as string]);
             reader.readAsDataURL(file);
         });
 
@@ -117,59 +151,53 @@ export default function AlbumForm() {
     };
 
     const onSubmit = (data: AlbumFormData) => {
-        createAlbumMutation.mutate({
+        saveMutation.mutate({
             ...data,
             artistIds: selectedArtists,
         });
     };
 
-    const isSubmitting = createAlbumMutation.isPending;
+    const isSubmitting = saveMutation.isPending;
 
-    if (loadingArtists) {
+    if (loadingArtists || (isEditMode && loadingAlbum)) {
         return <LoadingPage />;
+    }
+
+    if (isEditMode && !album) {
+        return (
+            <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
     }
 
     return (
         <div className="max-w-3xl mx-auto space-y-6">
-            {/* Header */}
             <div className="flex items-center space-x-4">
                 <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div>
-                    <h1 className="text-3xl font-bold">Novo Álbum</h1>
+                    <h1 className="text-3xl font-bold">{isEditMode ? 'Editar Álbum' : 'Novo Álbum'}</h1>
                     <p className="text-muted-foreground">
-                        Preencha os dados para criar um novo álbum
+                        {isEditMode ? 'Atualize os dados do álbum' : 'Preencha os dados para criar um novo álbum'}
                     </p>
                 </div>
             </div>
 
-            {/* Formulário */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                {/* Informações Básicas */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Informações do Álbum</CardTitle>
-                        <CardDescription>
-                            Os campos marcados com * são obrigatórios
-                        </CardDescription>
+                        <CardDescription>Os campos marcados com * são obrigatórios</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {/* Título */}
                         <div className="space-y-2">
                             <Label htmlFor="title">Título *</Label>
-                            <Input
-                                id="title"
-                                placeholder="Ex: A Night at the Opera"
-                                {...register('title')}
-                                disabled={isSubmitting}
-                            />
-                            {errors.title && (
-                                <p className="text-sm text-destructive">{errors.title.message}</p>
-                            )}
+                            <Input id="title" placeholder="Ex: A Night at the Opera" {...register('title')} disabled={isSubmitting} />
+                            {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
                         </div>
 
-                        {/* Ano */}
                         <div className="space-y-2">
                             <Label htmlFor="releaseYear">Ano de Lançamento *</Label>
                             <Input
@@ -179,22 +207,15 @@ export default function AlbumForm() {
                                 {...register('releaseYear', { valueAsNumber: true })}
                                 disabled={isSubmitting}
                             />
-                            {errors.releaseYear && (
-                                <p className="text-sm text-destructive">
-                                    {errors.releaseYear.message}
-                                </p>
-                            )}
+                            {errors.releaseYear && <p className="text-sm text-destructive">{errors.releaseYear.message}</p>}
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Artistas */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Artistas *</CardTitle>
-                        <CardDescription>
-                            Selecione um ou mais artistas para este álbum
-                        </CardDescription>
+                        <CardDescription>Selecione um ou mais artistas para este álbum</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="grid gap-2 md:grid-cols-2">
@@ -211,26 +232,24 @@ export default function AlbumForm() {
                                         className="h-4 w-4 rounded text-primary focus:ring-2 focus:ring-primary"
                                     />
                                     <span>{artist.name}</span>
-                                    <span className="text-xs text-muted-foreground">
-                    ({artist.isBand ? 'Banda' : 'Solo'})
-                  </span>
+                                    <span className="text-xs text-muted-foreground">({artist.isBand ? 'Banda' : 'Solo'})</span>
                                 </label>
                             ))}
                         </div>
+
                         {selectedArtists.length === 0 && (
-                            <p className="text-sm text-destructive mt-2">
-                                Selecione pelo menos um artista
-                            </p>
+                            <p className="text-sm text-destructive mt-2">Selecione pelo menos um artista</p>
                         )}
                     </CardContent>
                 </Card>
 
-                {/* Upload de Capas */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Capas do Álbum</CardTitle>
                         <CardDescription>
-                            Faça upload de uma ou mais capas (opcional)
+                            {isEditMode
+                                ? 'Envie novas capas (opcional). As capas antigas continuam, a menos que você as remova em outra tela.'
+                                : 'Faça upload de uma ou mais capas (opcional)'}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -241,9 +260,7 @@ export default function AlbumForm() {
                             >
                                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                     <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                                    <p className="text-sm text-muted-foreground">
-                                        Clique para selecionar imagens
-                                    </p>
+                                    <p className="text-sm text-muted-foreground">Clique para selecionar imagens</p>
                                 </div>
                                 <input
                                     id="cover"
@@ -257,16 +274,11 @@ export default function AlbumForm() {
                             </label>
                         </div>
 
-                        {/* Previews */}
                         {coverPreviews.length > 0 && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {coverPreviews.map((preview, index) => (
                                     <div key={index} className="relative group">
-                                        <img
-                                            src={preview}
-                                            alt={`Preview ${index + 1}`}
-                                            className="w-full h-32 object-cover rounded-lg"
-                                        />
+                                        <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-32 object-cover rounded-lg" />
                                         <button
                                             type="button"
                                             onClick={() => removeCover(index)}
@@ -281,18 +293,13 @@ export default function AlbumForm() {
                     </CardContent>
                 </Card>
 
-                {/* Botões */}
                 <div className="flex items-center space-x-4">
                     <Button type="submit" disabled={isSubmitting || selectedArtists.length === 0}>
                         <Save className="mr-2 h-4 w-4" />
-                        {isSubmitting ? 'Salvando...' : 'Criar Álbum'}
+                        {isSubmitting ? 'Salvando...' : isEditMode ? 'Salvar Alterações' : 'Criar Álbum'}
                     </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => navigate(-1)}
-                        disabled={isSubmitting}
-                    >
+
+                    <Button type="button" variant="outline" onClick={() => navigate(-1)} disabled={isSubmitting}>
                         Cancelar
                     </Button>
                 </div>

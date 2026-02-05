@@ -7,6 +7,17 @@ export interface User {
     exp: number;
 }
 
+type JwtPayload = {
+    exp?: number;
+    username?: string;
+    preferred_username?: string;
+    user_name?: string;
+    name?: string;
+    sub?: string;
+    email?: string;
+    [key: string]: any;
+};
+
 interface AuthState {
     token: string | null;
     refreshToken: string | null;
@@ -17,6 +28,25 @@ interface AuthState {
     logout: () => void;
     setToken: (token: string) => void;
     isTokenExpired: () => boolean;
+}
+
+function mapJwtToUser(payload: JwtPayload): User | null {
+    const exp = payload?.exp;
+    if (!exp) return null;
+
+    const username =
+        payload.preferred_username ||
+        payload.username ||
+        payload.user_name ||
+        payload.email ||
+        payload.name ||
+        payload.sub;
+
+    if (!username) {
+        return { username: 'Usuário', exp };
+    }
+
+    return { username, exp };
 }
 
 export const authStore = create<AuthState>()(
@@ -35,16 +65,23 @@ export const authStore = create<AuthState>()(
                 }
 
                 try {
-                    const decoded = jwtDecode<User>(token);
+                    const decoded = jwtDecode<JwtPayload>(token);
+                    const user = mapJwtToUser(decoded);
+
+                    if (!user) {
+                        console.error('JWT sem exp (inválido):', decoded);
+                        get().logout();
+                        return;
+                    }
 
                     set({
                         token,
                         refreshToken,
-                        user: decoded,
+                        user,
                         isAuthenticated: true,
                     });
 
-                    console.log('Login bem-sucedido:', decoded.username);
+                    console.log('Login bem-sucedido:', user.username);
                 } catch (error) {
                     console.error('Erro ao decodificar token:', error);
                     get().logout();
@@ -69,11 +106,18 @@ export const authStore = create<AuthState>()(
                 }
 
                 try {
-                    const decoded = jwtDecode<User>(token);
+                    const decoded = jwtDecode<JwtPayload>(token);
+                    const user = mapJwtToUser(decoded);
+
+                    if (!user) {
+                        console.error('JWT sem exp (inválido):', decoded);
+                        get().logout();
+                        return;
+                    }
 
                     set({
                         token,
-                        user: decoded,
+                        user,
                         isAuthenticated: true,
                     });
                 } catch (error) {
@@ -85,15 +129,13 @@ export const authStore = create<AuthState>()(
             isTokenExpired: () => {
                 const { user } = get();
 
-                if (!user || !user.exp) {
-                    return true;
-                }
+                if (!user?.exp) return true;
 
                 const expirationTime = user.exp * 1000;
                 const currentTime = Date.now();
                 const timeUntilExpiration = expirationTime - currentTime;
 
-                return timeUntilExpiration < 60000; // 1 minuto
+                return timeUntilExpiration < 60000;
             },
         }),
         {

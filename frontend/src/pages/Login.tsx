@@ -53,7 +53,6 @@ export default function Login() {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-[#121212] to-black flex flex-col">
-            {/* Login Form */}
             <div className="flex-1 flex items-center justify-center px-4">
                 <div className="w-full max-w-md space-y-8">
                     <div className="text-center">
@@ -106,7 +105,6 @@ export default function Login() {
                         </Button>
                     </form>
 
-                    {/* Demo credentials */}
                     <div className="mt-8 p-4 bg-[#181818] rounded-lg border border-[#282828]">
                         <p className="text-[#b3b3b3] text-sm text-center mb-2">
                             Credenciais de teste:
@@ -119,7 +117,6 @@ export default function Login() {
                 </div>
             </div>
 
-            {/* Footer */}
             <footer className="p-8 text-center text-[#727272] text-sm">
                 <p>© 2026 Seplag Music • Processo Seletivo Seplag 2026</p>
             </footer>

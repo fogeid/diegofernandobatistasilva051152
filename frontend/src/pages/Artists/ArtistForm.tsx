@@ -97,7 +97,6 @@ export default function ArtistForm() {
 
     return (
         <div className="max-w-2xl mx-auto space-y-6">
-            {/* Header */}
             <div className="flex items-center space-x-4">
                 <Button
                     variant="ghost"
@@ -117,8 +116,6 @@ export default function ArtistForm() {
                     </p>
                 </div>
             </div>
-
-            {/* Formulário */}
             <Card>
                 <CardHeader>
                     <CardTitle>Informações do Artista</CardTitle>
@@ -128,7 +125,6 @@ export default function ArtistForm() {
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                        {/* Nome */}
                         <div className="space-y-2">
                             <Label htmlFor="name">Nome *</Label>
                             <Input
@@ -142,7 +138,6 @@ export default function ArtistForm() {
                             )}
                         </div>
 
-                        {/* Tipo */}
                         <div className="space-y-2">
                             <Label>Tipo *</Label>
                             <div className="flex items-center space-x-4">
@@ -171,7 +166,6 @@ export default function ArtistForm() {
                             </div>
                         </div>
 
-                        {/* Botões */}
                         <div className="flex items-center space-x-4">
                             <Button type="submit" disabled={isSubmitting}>
                                 <Save className="mr-2 h-4 w-4" />

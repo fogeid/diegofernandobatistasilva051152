@@ -11,24 +11,24 @@ const AlbumForm = lazy(() => import('../pages/Albums/AlbumForm'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 export function AppRoutes() {
+    console.log('AppRoutes carregou - versão 1');
     return (
         <Suspense fallback={<LoadingSpinner />}>
             <Routes>
-                {/* Rotas públicas */}
                 <Route path="/login" element={<Login />} />
 
-                {/* Rotas privadas */}
                 <Route element={<PrivateRoute />}>
                     <Route path="/" element={<Navigate to="/artists" replace />} />
                     <Route path="/artists" element={<ArtistsList />} />
                     <Route path="/artists/:id" element={<ArtistDetail />} />
                     <Route path="/artists/new" element={<ArtistForm />} />
                     <Route path="/artists/:id/edit" element={<ArtistForm />} />
+
                     <Route path="/albums/new" element={<AlbumForm />} />
                     <Route path="/albums/:id/edit" element={<AlbumForm />} />
+                    <Route path="/albums/*" element={<div style={{ padding: 20, color: 'white' }}>BATEU /albums/*</div>} />
                 </Route>
 
-                {/* 404 */}
                 <Route path="*" element={<NotFound />} />
             </Routes>
         </Suspense>

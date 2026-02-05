@@ -1,7 +1,6 @@
 import { BrowserRouter } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import { LoadingPage } from './components/common/LoadingSpinner';
 import { webSocketService } from './services/websocket.service';
 import { authStore } from './stores/authStore';
@@ -91,6 +90,14 @@ function App() {
                     {/* Álbuns */}
                     <Route
                         path="/albums/new"
+                        element={
+                            <PrivateRoute>
+                                <AlbumForm />
+                            </PrivateRoute>
+                        }
+                    />
+                    <Route
+                        path="/albums/:id/edit"
                         element={
                             <PrivateRoute>
                                 <AlbumForm />
