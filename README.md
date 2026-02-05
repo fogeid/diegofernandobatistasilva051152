@@ -191,15 +191,13 @@ docker-compose up -d
 
 ## URLs Locais
 
-| Serviço | URL |
-|------|-----|
-| Frontend | http://localhost |
+| Serviço | URL | Acessos
+|------|-----|--------|
+| Frontend | http://localhost | user: admin / password: admin123
 | API | http://localhost/api |
 | Swagger | http://localhost/swagger-ui |
-| MinIO Console | http://localhost:9001 |
-| SonarQube | http://localhost:9002 |
-
----
+| MinIO Console | http://localhost:9001 | user: seplag / password: seplag123
+| SonarQube | http://localhost:9002 | user: admin / password: seplag
 
 # 🧪 Testes
 
