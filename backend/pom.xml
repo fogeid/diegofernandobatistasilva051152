@@ -1,43 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
 	<modelVersion>4.0.0</modelVersion>
+
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.2.5</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
+
 	<groupId>br.gov.mt.seplag</groupId>
 	<artifactId>Projeto-Seplag</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>Projeto-Seplag</name>
 	<description>Projeto para o Processo Seletivo Seplag 2026</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+
 	<properties>
 		<java.version>21</java.version>
+		<maven.compiler.release>${java.version}</maven.compiler.release>
+		<maven.compiler.parameters>true</maven.compiler.parameters>
+
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+		<!-- Lombok (fixa versão p/ evitar incompatibilidades) -->
+		<lombok.version>1.18.36</lombok.version>
+
 		<!-- Versões das dependências extras -->
 		<minio.version>8.5.7</minio.version>
 		<jjwt.version>0.12.6</jjwt.version>
 		<springdoc.version>2.5.0</springdoc.version>
 		<bucket4j.version>8.14.0</bucket4j.version>
+
+		<!-- SonarQube (opcional manter aqui; host/login normalmente via CLI/env) -->
+		<sonar.projectKey>projeto-seplag</sonar.projectKey>
+		<sonar.projectName>Projeto Seplag</sonar.projectName>
+		<sonar.sourceEncoding>UTF-8</sonar.sourceEncoding>
+		<sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 	</properties>
+
 	<dependencies>
-		<!-- ========== DEPENDÊNCIAS ORIGINAIS ========== -->
+		<!-- Spring Boot -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
@@ -47,7 +53,7 @@
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
 
-		<!-- H2 Database - SEM scope runtime para habilitar console -->
+		<!-- H2 (sem scope runtime para habilitar console) -->
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
@@ -73,27 +79,30 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-websocket</artifactId>
 		</dependency>
+
+		<!-- Banco (prod) -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+
+		<!-- Lombok -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
+			<version>${lombok.version}</version>
 			<optional>true</optional>
 		</dependency>
 
-		<!-- ========== DEPENDÊNCIAS ADICIONADAS ========== -->
-
-		<!-- MinIO (S3-compatible storage) para upload de imagens -->
+		<!-- MinIO -->
 		<dependency>
 			<groupId>io.minio</groupId>
 			<artifactId>minio</artifactId>
 			<version>${minio.version}</version>
 		</dependency>
 
-		<!-- JWT (JSON Web Token) para autenticação -->
+		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -112,31 +121,37 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- OpenAPI/Swagger para documentação da API -->
+		<!-- Swagger/OpenAPI -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>${springdoc.version}</version>
 		</dependency>
 
-		<!-- Bucket4j para Rate Limiting -->
+		<!-- Rate limit -->
 		<dependency>
 			<groupId>com.bucket4j</groupId>
 			<artifactId>bucket4j-core</artifactId>
 			<version>8.10.1</version>
 		</dependency>
-
 		<dependency>
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>
 		</dependency>
 
+		<!-- (Opcional) Webflux - só mantenha se você REALMENTE usa WebClient/Reactor -->
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-webflux</artifactId>
 		</dependency>
 
-		<!-- ========== DEPENDÊNCIAS DE TESTE ========== -->
+		<!-- Thymeleaf -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+
+		<!-- Testes -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
@@ -152,26 +167,40 @@
 			<artifactId>reactor-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-test-autoconfigure</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-thymeleaf</artifactId>
-		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<!-- 1) Enforcer: força JDK 21 (esse erro TypeTag::UNKNOWN costuma acontecer quando o Maven está rodando com Java “novo demais”) -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>3.5.0</version>
+				<executions>
+					<execution>
+						<id>enforce-java</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireJavaVersion>
+									<version>[21,22)</version>
+								</requireJavaVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- 2) Compiler plugin fixado -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.12.1</version>
 				<configuration>
+					<release>${maven.compiler.release}</release>
+					<parameters>${maven.compiler.parameters}</parameters>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
@@ -181,6 +210,7 @@
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
+
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
@@ -193,16 +223,24 @@
 					</excludes>
 				</configuration>
 			</plugin>
-			<!-- Plugin JaCoCo para cobertura de testes -->
+
+			<!-- 3) JaCoCo: garante geração do XML (Sonar lê esse arquivo) -->
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.8.12</version>
 				<executions>
 					<execution>
+						<id>prepare-agent</id>
 						<goals>
 							<goal>prepare-agent</goal>
 						</goals>
+						<configuration>
+							<excludes>
+								<exclude>**/dto/**</exclude>
+								<exclude>**/entity/**</exclude>
+							</excludes>
+						</configuration>
 					</execution>
 					<execution>
 						<id>report</id>
@@ -210,16 +248,26 @@
 						<goals>
 							<goal>report</goal>
 						</goals>
+						<configuration>
+							<excludes>
+								<exclude>**/dto/**</exclude>
+								<exclude>**/entity/**</exclude>
+							</excludes>
+							<formats>
+								<format>XML</format>
+								<format>HTML</format>
+							</formats>
+						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<excludes>
-						<exclude>**/dto/**</exclude>
-						<exclude>**/entity/**</exclude>
-					</excludes>
-				</configuration>
+			</plugin>
+
+			<!-- Sonar (não é obrigatório declarar no POM, mas pode deixar) -->
+			<plugin>
+				<groupId>org.sonarsource.scanner.maven</groupId>
+				<artifactId>sonar-maven-plugin</artifactId>
+				<version>3.10.0.2594</version>
 			</plugin>
 		</plugins>
 	</build>
-
 </project>

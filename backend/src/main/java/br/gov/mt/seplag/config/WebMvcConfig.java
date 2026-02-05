@@ -3,6 +3,7 @@ package br.gov.mt.seplag.config;
 import br.gov.mt.seplag.security.RateLimitInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -22,5 +23,21 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/v3/api-docs/**",
                         "/actuator/**"
                 );
+    }
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOrigins(
+                        "http://localhost:8080",
+                        "http://localhost:9000",
+                        "http://127.0.0.1:8080",
+                        "http://127.0.0.1:9000"
+                )
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .exposedHeaders("Authorization", "Content-Disposition")
+                .allowCredentials(false)
+                .maxAge(3600);
     }
 }
