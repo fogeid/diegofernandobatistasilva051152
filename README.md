@@ -197,7 +197,7 @@ docker-compose up -d
 | API | http://localhost/actuator/health |
 | Swagger | http://localhost/swagger-ui |
 | MinIO Console | http://localhost:9001 | user: seplag / password: seplag123
-| SonarQube | http://localhost:9002 | user: admin / password: seplag
+| SonarQube | http://localhost:9002 | user: admin / password: admin
 
 # 🧪 Testes
 
