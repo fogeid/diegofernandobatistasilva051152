@@ -9,6 +9,6 @@
            |_|            |___/
 
 :: Projeto para o Processo Seletivo SeplagMT 2026 ::
-::                 ${AnsiColor.GREEN}version: 1.2.0${AnsiColor.DEFAULT}                 ::
+::                 ${AnsiColor.GREEN}version: 1.3.0${AnsiColor.DEFAULT}                 ::
 
 --------------------------------------------------------
